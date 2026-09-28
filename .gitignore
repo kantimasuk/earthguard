@@ -1,0 +1,13 @@
+node_modules
+.env
+.env.local
+dist
+.DS_Store
+
+# ความลับ — ห้ามขึ้น GitHub เด็ดขาด
+firebase-service-account.json
+*service-account*.json
+# ไฟล์ชั่วคราว / ต้นฉบับรูปที่ไม่ได้ใช้ในเกม
+*.tmp.mjs
+client/src/assets/ui/_original/
+*.tgz

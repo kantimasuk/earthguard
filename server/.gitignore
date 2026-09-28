@@ -1,0 +1,5 @@
+node_modules
+.env
+# กุญแจ Firebase Admin — ห้ามขึ้น Git เด็ดขาด
+firebase-service-account.json
+*-firebase-adminsdk-*.json

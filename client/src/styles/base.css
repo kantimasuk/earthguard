@@ -1,0 +1,186 @@
+/* ============ Base ============ */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  /* ขนาดตัวอักษรหลักปรับตามความสูงจอ: มือถือแนวนอน ≈13px, แท็บเล็ต/คอม ≈17px */
+  font-size: clamp(13px, calc(0.55rem + 1.1vh), 17px);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html, body, #app {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--bg-1);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+input, textarea { user-select: text; -webkit-user-select: text; }
+
+h1, h2, h3, h4 { font-family: var(--font-head); font-weight: 600; margin: 0; line-height: 1.2; }
+p { margin: 0; }
+a { color: var(--accent); }
+button { font: inherit; color: inherit; }
+img { display: block; max-width: 100%; }
+
+:focus-visible { outline: 3px solid var(--sky-dark); outline-offset: 2px; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ============ Page shell ============ */
+.page {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============ Panel ============ */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-l), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* ============ Buttons ============ */
+.btn {
+  --btn-bg: var(--leaf);
+  --btn-edge: var(--leaf-dark);
+  --btn-ink: var(--leaf-ink);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: max(var(--control-h), var(--tap-min));
+  padding: 0 1.2rem;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: var(--btn-bg);
+  color: var(--btn-ink);
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 0.12rem 0 var(--btn-edge), 0 0.35rem 0.8rem rgba(33, 79, 31, 0.18);
+  transition: transform 0.12s var(--ease-out), box-shadow 0.12s var(--ease-out), filter 0.15s;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.07); }
+.btn:active:not(:disabled) {
+  transform: translateY(0.1rem);
+  box-shadow: 0 0.02rem 0 var(--btn-edge), 0 0.15rem 0.4rem rgba(33, 79, 31, 0.18);
+}
+.btn:disabled { cursor: not-allowed; filter: grayscale(0.6) brightness(0.8); }
+.btn--block { width: 100%; }
+
+.btn--light {
+  --btn-bg: #ffffff;
+  --btn-edge: #e6e2cf;
+  --btn-ink: var(--text);
+  border: 1.5px solid var(--input-border);
+  font-weight: 500;
+}
+.btn--ghost {
+  --btn-bg: rgba(255, 255, 255, 0.7);
+  --btn-edge: #d5e8d8;
+  --btn-ink: var(--text);
+  border: 1px solid #e3efe6;
+}
+.btn--sun {
+  --btn-bg: var(--sun);
+  --btn-edge: var(--sun-dark);
+  --btn-ink: var(--sun-ink);
+}
+
+.btn .spinner {
+  width: 1.1em; height: 1.1em;
+  border: 2.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0.35rem 0.25rem;
+  min-height: 32px;
+  color: var(--accent);
+  font-family: var(--font-head);
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(58, 125, 44, 0.45);
+  text-underline-offset: 3px;
+}
+.link-btn:hover { color: #245e1f; }
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border-radius: 50%;
+  border: 1px solid var(--input-border);
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+}
+.icon-btn svg { width: 1.3rem; height: 1.3rem; }
+
+/* ============ Alerts ============ */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-s);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+.alert--error { background: var(--danger-bg); color: #b33a36; border: 1px solid #f5c2bf; }
+.alert--ok { background: #e8f8ea; color: #2c7a44; border: 1px solid #bfe6c6; }
+
+/* ============ Page transition (จางออก/จางเข้า) ============ */
+.page-enter-active,
+.page-leave-active { transition: opacity 0.45s ease, transform 0.45s var(--ease-out); }
+.page-enter-from { opacity: 0; transform: scale(1.015); }
+.page-leave-to { opacity: 0; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

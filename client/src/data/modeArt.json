@@ -1,0 +1,310 @@
+{
+ "tutorial": {
+  "w": 900,
+  "h": 603,
+  "base": "tutorial-base.webp",
+  "parts": [
+   {
+    "name": "stick",
+    "href": "tutorial-stick.webp",
+    "x": 563,
+    "y": 203,
+    "w": 119,
+    "h": 188,
+    "pivot": [
+     578,
+     376
+    ],
+    "cover": {
+     "href": "tutorial-stick-cover.webp",
+     "x": 525,
+     "y": 361,
+     "w": 76,
+     "h": 104
+    }
+   },
+   {
+    "name": "leaf",
+    "href": "tutorial-leaf.webp",
+    "x": 600,
+    "y": 87,
+    "w": 120,
+    "h": 98,
+    "pivot": [
+     640,
+     172
+    ]
+   },
+   {
+    "name": "spark",
+    "href": "tutorial-spark.webp",
+    "x": 0,
+    "y": 50,
+    "w": 100,
+    "h": 140,
+    "pivot": [
+     60,
+     120
+    ]
+   }
+  ],
+  "eyes": [
+   {
+    "x": 406,
+    "y": 205,
+    "w": 34,
+    "h": 65,
+    "skin": "#fde2cd"
+   },
+   {
+    "x": 281,
+    "y": 214,
+    "w": 35,
+    "h": 62,
+    "skin": "#fde2cd"
+   }
+  ],
+  "robotEyes": []
+ },
+ "single": {
+  "w": 900,
+  "h": 570,
+  "base": "single-base.webp",
+  "parts": [
+   {
+    "name": "hand",
+    "href": "single-hand.webp",
+    "x": 467,
+    "y": 445,
+    "w": 108,
+    "h": 87,
+    "pivot": [
+     560,
+     480
+    ],
+    "cover": {
+     "href": "single-hand-cover.webp",
+     "x": 552,
+     "y": 435,
+     "w": 65,
+     "h": 115
+    }
+   },
+   {
+    "name": "bubble",
+    "href": "single-bubble.webp",
+    "x": 650,
+    "y": 7,
+    "w": 210,
+    "h": 222,
+    "pivot": [
+     745,
+     210
+    ]
+   },
+   {
+    "name": "sprout",
+    "href": "single-sprout.webp",
+    "x": 593,
+    "y": 138,
+    "w": 96,
+    "h": 81,
+    "pivot": [
+     640,
+     214
+    ]
+   },
+   {
+    "name": "spark",
+    "href": "single-spark.webp",
+    "x": 475,
+    "y": 0,
+    "w": 105,
+    "h": 105,
+    "pivot": [
+     520,
+     60
+    ]
+   },
+   {
+    "name": "spark2",
+    "href": "single-spark2.webp",
+    "x": 833,
+    "y": 267,
+    "w": 67,
+    "h": 116,
+    "pivot": [
+     850,
+     325
+    ]
+   }
+  ],
+  "eyes": [
+   {
+    "x": 310,
+    "y": 225,
+    "w": 49,
+    "h": 60,
+    "skin": "#fde3bd"
+   },
+   {
+    "x": 186,
+    "y": 230,
+    "w": 41,
+    "h": 57,
+    "skin": "#fde3bd"
+   }
+  ],
+  "robotEyes": [
+   {
+    "x": 545,
+    "y": 317,
+    "w": 46,
+    "h": 34
+   },
+   {
+    "x": 656,
+    "y": 324,
+    "w": 46,
+    "h": 35
+   }
+  ]
+ },
+ "multi": {
+  "w": 900,
+  "h": 819,
+  "base": "multi-base.webp",
+  "parts": [
+   {
+    "name": "fist1",
+    "href": "multi-fist1.webp",
+    "x": 87,
+    "y": 175,
+    "w": 77,
+    "h": 80,
+    "pivot": [
+     135,
+     248
+    ],
+    "cover": {
+     "href": "multi-fist1-cover.webp",
+     "x": 95,
+     "y": 223,
+     "w": 100,
+     "h": 50
+    }
+   },
+   {
+    "name": "fist2",
+    "href": "multi-fist2.webp",
+    "x": 740,
+    "y": 197,
+    "w": 79,
+    "h": 64,
+    "pivot": [
+     792,
+     254
+    ],
+    "cover": {
+     "href": "multi-fist2-cover.webp",
+     "x": 730,
+     "y": 238,
+     "w": 115,
+     "h": 67
+    }
+   },
+   {
+    "name": "vsign",
+    "href": "multi-vsign.webp",
+    "x": 513,
+    "y": 419,
+    "w": 73,
+    "h": 101,
+    "pivot": [
+     548,
+     508
+    ],
+    "cover": {
+     "href": "multi-vsign-cover.webp",
+     "x": 500,
+     "y": 495,
+     "w": 105,
+     "h": 70
+    }
+   }
+  ],
+  "eyes": [
+   {
+    "x": 309,
+    "y": 147,
+    "w": 33,
+    "h": 45,
+    "skin": "#fde4c4"
+   },
+   {
+    "x": 216,
+    "y": 159,
+    "w": 33,
+    "h": 44,
+    "skin": "#fde4c4"
+   },
+   {
+    "x": 566,
+    "y": 159,
+    "w": 27,
+    "h": 42,
+    "skin": "#fde5c7"
+   },
+   {
+    "x": 653,
+    "y": 169,
+    "w": 27,
+    "h": 41,
+    "skin": "#fce5c6"
+   },
+   {
+    "x": 476,
+    "y": 355,
+    "w": 28,
+    "h": 43,
+    "skin": "#fde5c6"
+   },
+   {
+    "x": 382,
+    "y": 356,
+    "w": 27,
+    "h": 42,
+    "skin": "#fde5c6"
+   },
+   {
+    "x": 663,
+    "y": 396,
+    "w": 32,
+    "h": 44,
+    "skin": "#fde5c6"
+   },
+   {
+    "x": 193,
+    "y": 401,
+    "w": 32,
+    "h": 44,
+    "skin": "#fde5c5"
+   },
+   {
+    "x": 754,
+    "y": 404,
+    "w": 33,
+    "h": 45,
+    "skin": "#fde5c6"
+   },
+   {
+    "x": 100,
+    "y": 411,
+    "w": 34,
+    "h": 45,
+    "skin": "#fde5c5"
+   }
+  ],
+  "robotEyes": []
+ }
+}

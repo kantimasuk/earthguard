@@ -1,0 +1,11 @@
+{
+  "name": "It's All Rights: EarthGuard",
+  "short_name": "EarthGuard",
+  "lang": "th",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#cdeefa",
+  "theme_color": "#cdeefa",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

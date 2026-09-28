@@ -1,0 +1,28 @@
+{
+  "name": "earthguard-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "db:init": "node src/db/init.js",
+    "test": "node --test \"test/*.test.js\"",
+    "simulate": "node scripts/simulate.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.0",
+    "firebase-admin": "^13.4.0",
+    "helmet": "^8.1.0",
+    "mysql2": "^3.14.0",
+    "nodemailer": "^7.0.3",
+    "socket.io": "^4.8.1"
+  }
+}
