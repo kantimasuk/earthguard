@@ -147,16 +147,22 @@ function choose(use) {
 .st.ok { background: #e2f3de; color: #2f7a2e; }
 .st.bad { background: #fde3df; color: #b8433a; }
 .st.wait { margin-left: auto; color: var(--text-faint); font-weight: 500; padding-right: 0; }
-.coin { position: relative; flex: none; width: 3.4rem; height: 1.6rem; perspective: 300px; margin-left: auto; }
+.coin {
+  /* สองหน้าซ้อนกันด้วย grid → ความกว้างพอดีข้อความเสมอ ("ไม่ใช้" ไม่ล้นกรอบแม้ฟอนต์เครื่องใหญ่) */
+  position: relative; flex: none; display: inline-grid; margin-left: auto; perspective: 300px;
+  min-width: 3.4rem; height: 1.6rem;
+}
 .coin.hidden { display: none; }
 .face {
-  position: absolute; inset: 0; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 0.2rem;
-  font-size: 0.75rem; font-weight: 700; backface-visibility: hidden; transition: transform 0.6s var(--ease-back);
+  grid-area: 1 / 1; display: flex; align-items: center; justify-content: center; gap: 0.2rem;
+  padding: 0 0.5rem; border-radius: 999px; white-space: nowrap;
+  font-size: 0.75rem; font-weight: 700; line-height: 1; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  transition: transform 0.6s var(--ease-back);
 }
 .back { background: #8d7a52; color: #fff4d6; border: 2px solid #6b5a38; }
 .front { background: #e8ebe5; color: #56655a; border: 2px solid #c8cec4; transform: rotateY(180deg); }
 .coin.used .front { background: #f2c14e; color: #6b4500; border-color: #b37d0c; }
-.front svg { width: 0.9rem; height: 0.9rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.front svg { flex: none; width: 0.9rem; height: 0.9rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
 .coin.flip .back { transform: rotateY(180deg); }
 .coin.flip .front { transform: rotateY(360deg); }
 .foot { flex: none; display: flex; flex-direction: column; gap: 0.75rem; }
@@ -182,7 +188,8 @@ function choose(use) {
   .list { gap: 0.32rem; }
   .list li { min-height: 0; padding: 0.28rem 0.6rem; gap: 0.55rem; font-size: 0.84rem; }
   .st { font-size: 0.68rem; padding: 0.12rem 0.55rem; }
-  .coin { height: 1.4rem; width: 3rem; }
+  .coin { height: 1.4rem; min-width: 3rem; }
+  .face { font-size: 0.68rem; padding: 0 0.4rem; }
   .foot { gap: 0.45rem; }
   .msg { padding: 0.32rem 0.7rem; font-size: 0.82rem; }
   .choose { gap: 0.4rem; }
@@ -195,7 +202,8 @@ function choose(use) {
   .tp.many .list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tp.many .why { display: none; }
   .tp.many .nm { min-width: 2.8rem; flex: 1; }
-  .tp.many .coin { width: 2.7rem; }
+  .tp.many .coin { min-width: 2.7rem; }
+  .tp.many .face { padding: 0 0.3rem; }
   .tp.many .list li { gap: 0.4rem; padding: 0.28rem 0.45rem; }
   .rule { display: none; }
 }

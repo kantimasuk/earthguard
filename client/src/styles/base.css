@@ -184,3 +184,20 @@ img { display: block; max-width: 100%; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============ โหมดประหยัดแรงเครื่อง (html.lite: Android / เครื่องสเปกต่ำ — ตั้งใน main.js) ============
+   เอฟเฟกต์เบลอกระจก (backdrop-filter) ต้องคำนวณใหม่ทุกเฟรมที่ด้านหลังขยับ → หนักมากบน Android
+   ปิดเบลอแล้วเพิ่มความทึบของพาเนลแทน หน้าตาเกือบเหมือนเดิม · ไม่กระทบกติกาหรือจังหวะเกม */
+html.lite *, html.lite *::before, html.lite *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html.lite .glass { background: rgba(255, 255, 255, 0.84) !important; }
+html.lite .panel { background: rgba(255, 255, 255, 0.94); }
+/* แอนิเมชันตกแต่งที่วนตลอดเวลา (พื้นหลัง, แสงเรือง) → หยุด ให้เครื่องว่างไว้วาดโต๊ะเกม */
+html.lite .scene .glow,
+html.lite .scene .motes,
+html.lite .scene .tint.on,
+html.lite .turn-pill.mine,
+html.lite .phase-pill.p3 { animation: none !important; }
+html.lite .scene .motes { display: none; }

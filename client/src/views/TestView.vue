@@ -510,7 +510,9 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
 }
 .stamp svg { width: 1em; height: 1em; stroke-width: 3.6; }
 .ans { margin: 0; font-weight: 600; color: var(--text-muted); }
-.ans b { font-family: var(--font-head); padding: 0 0.5em; border-radius: 999px; color: #fff; }
+.ans { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.4em; line-height: 1.5; }
+/* inline-block + padding บน-ล่าง: สระบน/ล่างของ "ถูก" "ผิด" อยู่ในพื้นสีครบ ไม่ล้นขอบ */
+.ans b { display: inline-block; font-family: var(--font-head); padding: 0.18em 0.75em 0.12em; line-height: 1.5; border-radius: 999px; color: #fff; }
 .ans b.y { background: #3f9a3a; }
 .ans b.n { background: #d9443a; }
 .exp {

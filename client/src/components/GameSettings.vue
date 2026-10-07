@@ -142,11 +142,13 @@ function doExit() { emit('exit'); }
 .label { font-weight: 600; color: var(--text); }
 .vol { display: flex; align-items: center; gap: 0.45rem; }
 .step {
-  width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--input-border);
-  background: #ffffff; display: grid; place-items: center; cursor: pointer;
+  /* padding: 0 + flex: ปุ่มบน iOS/Android มี padding ของเบราว์เซอร์ติดมา → ไอคอนเยื้องออกจากกลางวง */
+  flex: none; width: 36px; height: 36px; padding: 0; margin: 0; border-radius: 50%; border: 1.5px solid var(--input-border);
+  background: #ffffff; display: flex; align-items: center; justify-content: center; line-height: 0; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
 }
 .step:disabled { opacity: 0.4; cursor: not-allowed; }
-.step svg { width: 18px; height: 18px; fill: none; stroke: var(--leaf); stroke-width: 2.6; stroke-linecap: round; }
+.step svg { display: block; flex: none; width: 18px; height: 18px; fill: none; stroke: var(--leaf); stroke-width: 2.6; stroke-linecap: round; }
 .bars { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
 .bars i { width: 5px; border-radius: 2px; background: #e2e6de; }
 .bars i:nth-child(1) { height: 6px; } .bars i:nth-child(2) { height: 8px; } .bars i:nth-child(3) { height: 10px; }

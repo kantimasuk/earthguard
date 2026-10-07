@@ -274,7 +274,7 @@ const { leave, exiting } = useLeaveGame(async () => {
 
 // ---------------- computed ----------------
 const players = computed(() => view.value?.players || []);
-const nameOf = (id) => (id === me.value ? 'คุณ' : players.value.find((p) => p.id === id)?.name || id);
+const nameOf = (id) => (id === me.value ? 'คุณ' : players.value.find((p) => p.id === id)?.name || '');
 const isMyTurn = computed(() => view.value && view.value.current === me.value && view.value.stage !== 'ended');
 const stage = computed(() => view.value?.stage);
 const canAct = computed(() => isMyTurn.value && !busy.value && !pending.value && !threatUI.value);
@@ -873,7 +873,7 @@ function selectPlayer(id) {
           <div class="status">
             <div class="timer-box glass">
               <TimerRing v-if="showTimer" :deadline="myTimer.deadline" :duration="myTimer.duration" :size="tallUI ? 92 : 72" big />
-              <div v-else class="idle" :class="{ sm: !tallUI }"><b>{{ isMyTurn ? '...' : 'รอ' }}</b><small>เวลา 20 วินาที</small></div>
+              <div v-else class="idle" :class="{ sm: !tallUI }"><b>{{ isMyTurn ? '...' : 'รอ' }}</b><small>20 วินาที</small></div>
             </div>
             <div class="notify glass" aria-live="polite">
               <p v-if="!notes.length" class="none">การแจ้งเตือนจะแสดงที่นี่</p>
@@ -923,7 +923,7 @@ function selectPlayer(id) {
             <span v-else class="pidle"><span class="dotty" /></span>
           </div>
           <div class="ptext">
-            <b class="pturn">{{ view.stage === 'ended' ? 'จบเกม' : isMyTurn ? 'ตาของคุณ' : `รอ ${nameOf(view.current)}` }}</b>
+            <b class="pturn">{{ view.stage === 'ended' ? 'จบเกม' : isMyTurn ? 'ตาของคุณ' : view.current ? `รอ ${nameOf(view.current)}` : 'กำลังแจกการ์ด...' }}</b>
             <TransitionGroup name="note" tag="span" class="pnote">
               <span v-for="n in notes.slice(0, 1)" :key="n.id" :class="n.type">{{ n.text }}</span>
             </TransitionGroup>
@@ -947,7 +947,7 @@ function selectPlayer(id) {
               <button type="button" class="btn btn--light act" :disabled="pending" @click="endBuild">จบตา</button>
             </template>
             <span v-else-if="myPeek" class="hint">ตัดสินใจการ์ดบนสุด</span>
-            <span v-else-if="view.stage !== 'ended' && !isMyTurn" class="hint wait"><span class="dotty" /> รอ {{ nameOf(view.current) }}</span>
+            <span v-else-if="view.stage !== 'ended' && !isMyTurn" class="hint wait"><span class="dotty" /> {{ view.current ? `รอ ${nameOf(view.current)}` : 'กำลังแจกการ์ด...' }}</span>
           </div>
         </section>
 
@@ -986,7 +986,7 @@ function selectPlayer(id) {
               @click="togglePanel(k)"
             >
               <span class="ptag">{{ TITLES[k] }} <b>{{ panelCount(k) }}</b></span>
-              <span v-if="peekList(k).length" class="hp-row">
+              <span v-if="peekList(k).length" v-fit class="hp-row">
                 <span v-for="id in peekList(k)" :key="id" class="hp-card" :class="{ flying: flying.includes(id) }" :data-card="id"><img :src="artUrl(id)" alt="" draggable="false" /></span>
               </span>
               <span v-else class="hp-empty">{{ k === 'acts' ? 'ยังไม่มีการ์ด' : 'ยังไม่มีการ์ดสิทธิ' }}</span>
@@ -1313,7 +1313,7 @@ function selectPlayer(id) {
 .idle.sm { width: 72px; height: 72px; }
 .idle.sm b { font-size: 1.2rem; }
 .idle.sm small { font-size: 0.56rem; }
-.idle small { font-size: 0.66rem; font-weight: 600; margin-top: 0.15rem; }
+.idle small { max-width: 80%; text-align: center; white-space: nowrap; overflow: hidden; font-size: 0.66rem; font-weight: 600; line-height: 1.2; margin-top: 0.15rem; }
 .notify { flex: 1; min-width: 0; min-height: 4.2rem; padding: 0.55rem 0.8rem; display: flex; flex-direction: column; justify-content: center; gap: 0.25rem; overflow: hidden; }
 .notify p { margin: 0; font-size: 0.92rem; font-weight: 700; color: var(--ink); line-height: 1.35; }
 .notify p.ok { color: #2c7a44; }
@@ -1420,7 +1420,7 @@ function selectPlayer(id) {
 /* การ์ดของฉัน: กรอบเดียว 2 แถว */
 .pmine { flex: 1 1 0; min-height: 0; max-height: 13rem; display: flex; flex-direction: column; padding: 0.3rem; border-radius: 16px; gap: 0.25rem; }
 .prow {
-  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 0.15rem;
+  flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 0.15rem;
   padding: 0.25rem 0.35rem 0.3rem; border-radius: 12px; border: 0; cursor: pointer; font: inherit; text-align: left;
   background: rgba(255, 255, 255, 0.5); transition: background 0.15s;
 }
@@ -1430,12 +1430,12 @@ function selectPlayer(id) {
 .ptag b { min-width: 1.1rem; padding: 0 0.3rem; border-radius: 999px; text-align: center; font-size: 0.6rem; color: #fff; background: #7fb5e3; }
 .prow.rights .ptag b { background: #ea7fa2; }
 
-.pbtns { flex: none; display: flex; justify-content: flex-end; gap: 0.55rem; margin-top: auto; padding: 0 6px 6px 0; }
+.pbtns { flex: none; display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: auto; padding: 0 6px 6px 0; }
 /* ปุ่มกลมแบบเกม: วงกลมสีพาสเทลไล่สี ขอบขาวหนา เงานูนด้านล่าง ไอคอนทึบสีขาว
    สิทธิที่สร้างแล้ว = เหลือง · การ์ดสิทธิในมือ = ชมพู · การ์ดในมือ = ฟ้า (สีเดียวกับ Navbar) */
 .pbtn {
   --c: #5aa0dd; --c-light: #a9d4f7; --c-deep: #2f6fa8;
-  position: relative; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; padding: 0; margin: 0;
+  position: relative; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; padding: 0; margin: 0;
   display: flex; align-items: center; justify-content: center; line-height: 0;
   background: radial-gradient(circle at 35% 28%, #ffffff 0 8%, transparent 9%), linear-gradient(180deg, var(--c-light) 0%, var(--c) 70%);
   border: 3px solid #ffffff;
@@ -1445,7 +1445,7 @@ function selectPlayer(id) {
 .pbtn.built { --c: #efb834; --c-light: #ffe08a; --c-deep: #b8841a; --c-soft: #fff6dc; }
 .pbtn.rights { --c: #ea7fa2; --c-light: #ffc2d4; --c-deep: #b24f73; --c-soft: #fde8ef; }
 .pbtn.acts { --c-soft: #e6f2fd; }
-.pbtn svg { display: block; flex: none; width: 20px; height: 20px; filter: drop-shadow(0 1.5px 0 var(--c-deep)); }
+.pbtn svg { display: block; flex: none; width: 24px; height: 24px; filter: drop-shadow(0 1.5px 0 var(--c-deep)); }
 /* มีรูปไอคอนของทีม: พื้นปุ่มขาวนวล ขอบสีตามหมวด · รูปใหญ่เต็มวง ล้นขอบนิด ๆ ให้ดูน่ารัก */
 .pbtn:has(.pic) {
   background: radial-gradient(circle at 50% 40%, #ffffff 0%, var(--c-soft, #f3f8ff) 100%);
@@ -1523,12 +1523,13 @@ function selectPlayer(id) {
 .hand-peek.glow { box-shadow: 0 0 0 3px rgba(108, 199, 136, 0.55), 0 6px 18px rgba(50, 90, 70, 0.12); }
 .hand-peek:active { transform: scale(0.98); }
 .hp-head { flex: none; font-size: 0.66rem; font-weight: 700; color: #4f6f57; }
-.hp-row { flex: 1; min-height: 0; display: flex; justify-content: center; container-type: size; }
-.hp-card { flex: 0 1 calc(100cqh * 0.714); min-width: 0; height: 100%; }
+.hp-row { flex: 1; min-height: 0; display: flex; justify-content: center; overflow: hidden; }
+/* --rh = ความสูงจริงของแถว (วัดด้วย v-fit) · ไม่ใช้ container query เพราะ Safari/Android รุ่นเก่าไม่รองรับ → การ์ดล้นกรอบ */
+.hp-card { flex: 0 1 calc(var(--rh, 2.6rem) * 0.714); min-width: 0; height: 100%; }
 .hp-card + .hp-card { margin-left: 3px; }
 .hp-card:last-child { flex-shrink: 0; }
 .hp-card img {
-  display: block; height: 100cqh; width: auto; max-width: none; aspect-ratio: 5 / 7;
+  display: block; height: var(--rh, 2.6rem); width: auto; max-width: none; aspect-ratio: 5 / 7;
   border-radius: 7%/5%; box-shadow: 0 1px 5px rgba(40, 70, 50, 0.3);
 }
 .hp-empty { flex: 1; display: grid; place-items: center; font-size: 0.66rem; color: #8a9a8d; }

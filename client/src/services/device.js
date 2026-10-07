@@ -24,3 +24,22 @@ export async function enterGameMode() {
 }
 
 export const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
+
+/**
+ * ระดับประสิทธิภาพของเครื่อง (ใช้ลดภาระการวาด โดยไม่เปลี่ยนกติกาหรือจังหวะเกม)
+ * - lite: Android หรือเครื่องสเปกต่ำ → ปิดเบลอกระจก (backdrop-filter) + แอนิเมชันตกแต่งที่วนตลอด
+ * - low : RAM ≤ 4GB หรือ CPU ≤ 4 คอร์ → ลดความละเอียดการวาดของโต๊ะเกมลงอีก
+ */
+export const perf = (() => {
+  if (typeof window === 'undefined') return { lite: false, low: false };
+  const ua = navigator.userAgent || '';
+  const android = /Android/i.test(ua);
+  const mem = navigator.deviceMemory || 8;      // Chrome เท่านั้น (Safari ไม่มี → ถือว่าแรง)
+  const cores = navigator.hardwareConcurrency || 8;
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const low = coarse && (mem <= 4 || cores <= 4);
+  return { lite: android || low, low, android };
+})();
+
+/** ความละเอียดสูงสุดของ canvas เกม (devicePixelRatio) */
+export const maxDpr = () => (perf.low ? 1.75 : perf.lite ? 2 : 3);

@@ -3,6 +3,7 @@ import { createCardArtist } from './cardArt';
 import { loadCardImages } from './cardImages';
 import { AI_LIST } from './avatars';
 import { preloadUi } from '../services/uiArt';
+import { maxDpr } from '../services/device';
 
 /**
  * @param {HTMLElement} parent  กล่องที่จะใส่ canvas (เต็มจอ)
@@ -25,8 +26,9 @@ export async function bootGame(parent, bridge) {
   const aiPics = await preloadUi(AI_LIST.map((a) => `ai-${a.avatar}`));
   const aiImages = Object.fromEntries(AI_LIST.map((a, i) => [a.avatar, aiPics[i]]).filter(([, img]) => img));
   const art = createCardArtist(bridge.cards, images);
-  // จอมือถือส่วนใหญ่เป็น 3x → วาดเต็มความละเอียด (เดิมจำกัด 2x ทำให้เบราว์เซอร์ต้องขยายภาพต่อ = เบลอ)
-  const dpr = () => Math.min(3, window.devicePixelRatio || 1);
+  // ความละเอียดการวาด: iPhone/คอม สูงสุด 3x (คม) · Android 2x · เครื่องสเปกต่ำ 1.75x
+  // จอ 3x มีพิกเซลมากกว่า 2x ถึง 2.25 เท่า → บน Android ลดลงช่วยให้ลื่นขึ้นมาก โดยการ์ดยังคมพอ
+  const dpr = () => Math.min(maxDpr(), window.devicePixelRatio || 1);
   const size = () => ({ w: Math.max(320, parent.clientWidth), h: Math.max(240, parent.clientHeight) });
 
   return new Promise((resolve) => {

@@ -32,7 +32,7 @@ const rows = computed(() => {
 </script>
 
 <template>
-  <section class="players glass" :class="{ compact }">
+  <section v-fit="[250, 215]" class="players glass" :class="{ compact }">
     <h3>{{ compact ? 'ผู้เล่น' : 'ผู้เล่นในห้อง' }}</h3>
     <ul>
       <li
@@ -69,7 +69,7 @@ const rows = computed(() => {
 </template>
 
 <style scoped>
-.players { display: flex; flex-direction: column; min-height: 0; overflow: hidden; container-type: inline-size; }
+.players { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 h3 {
   margin: 0; padding: 0.45rem 0.8rem; text-align: center;
   font-family: var(--font-head); font-size: 1rem; font-weight: 700; color: #2f5a3a;
@@ -97,7 +97,8 @@ li.turn { background: #fff8dc; border-color: #f6cf6a; box-shadow: 0 0 0 3px rgba
 }
 .pulse { flex: none; width: 6px; height: 6px; border-radius: 50%; background: #e0a100; animation: blink 1s ease-in-out infinite; }
 @keyframes blink { 50% { opacity: 0.25; } }
-.stats { display: flex; gap: 0.55rem; font-size: 0.78rem; font-weight: 700; color: #3d5a45; white-space: nowrap; }
+.stats { display: flex; gap: 0.55rem; min-width: 0; overflow: hidden; font-size: 0.78rem; font-weight: 700; color: #3d5a45; white-space: nowrap; }
+.stats span { flex: none; }
 .stats small { font-weight: 500; color: #6d7f71; }
 .dot { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 3px; margin-right: 0.22rem; vertical-align: 0.02em; }
 .dot.c { background: #9fc7ec; }
@@ -106,12 +107,14 @@ li.turn { background: #fff8dc; border-color: #f6cf6a; box-shadow: 0 0 0 3px rgba
 .say-enter-active, .say-leave-active { transition: opacity 0.2s, transform 0.2s; }
 .say-enter-from, .say-leave-to { opacity: 0; transform: translateY(4px); }
 
-/* แผงแคบ (คอลัมน์ซ้ายบนแท็บเล็ต/จอเล็ก): ตัวเลขสถิติเล็กลง ไม่ล้นขอบ */
-@container (max-width: 250px) {
-  li { gap: 0.6rem; padding: 0.4rem 0.5rem 0.4rem 0.55rem; }
-  .stats { gap: 0.35rem; font-size: 0.7rem; }
-  .dot { width: 0.45rem; height: 0.45rem; margin-right: 0.15rem; }
-}
+/* แผงแคบ (คอลัมน์ซ้ายบนแท็บเล็ต/จอเล็ก): ตัวเลขสถิติเล็กลง ไม่ล้นขอบ
+   v-fit วัดความกว้างจริง → คลาส fit-lt-250 / fit-lt-215 (แทน @container ที่ iPad รุ่นเก่าไม่รองรับ) */
+.players.fit-lt-250 li { gap: 0.6rem; padding: 0.4rem 0.5rem 0.4rem 0.55rem; }
+.players.fit-lt-250 .stats { gap: 0.35rem; font-size: 0.7rem; }
+.players.fit-lt-250 .dot { width: 0.45rem; height: 0.45rem; margin-right: 0.15rem; }
+/* แคบมาก หรือฟอนต์ของเครื่องใหญ่กว่าปกติ: ให้ตัวเลขขึ้นบรรทัดใหม่ได้ แทนการล้นออกนอกกรอบ */
+.players.fit-lt-250 .stats { flex-wrap: wrap; row-gap: 0; }
+.players.fit-lt-215 .stats { gap: 0 0.4rem; font-size: 0.66rem; }
 /* แท็บเล็ต / จอคอมเตี้ย: แถวผู้เล่นเตี้ยลง → 5 คนพอดีกล่อง */
 @media (min-height: 501px) and (max-height: 899px) {
   .players { --pav: 2.1rem; }

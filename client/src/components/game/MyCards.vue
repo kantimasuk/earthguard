@@ -5,7 +5,7 @@
 //   rights = การ์ดสิทธิในมือ (บอกด้วยว่า "สร้างได้!" หรือยังขาดอะไร)
 //   built  = สิทธิที่สร้างแล้ว (บอกจำนวนครั้งที่ป้องกันได้)
 // ============================================================
-// ขนาดการ์ดปรับตามความสูงของแต่ละส่วนอัตโนมัติ (CSS container query: 1cqh = 1% ของความสูงกล่อง)
+// ขนาดการ์ดปรับตามความสูงของแต่ละส่วนอัตโนมัติ (v-fit วัดความสูงแถว → --rh)
 // การ์ดเยอะจนล้นความกว้าง → ช่องแต่ละใบหดลง (flex-shrink) แต่รูปการ์ดยังเต็มใบ → ซ้อนกันเอง
 import { computed, inject } from 'vue';
 import { missingFor } from '@/game/reduce';
@@ -48,7 +48,7 @@ const protects = (id) => props.built.find((b) => b.card === id)?.protects || 0;
   <div class="mycards" :class="{ single }">
     <section v-for="k in sections" :key="k" class="sec" :class="k" :data-anchor="k === 'built' ? 'me:built' : k === 'acts' ? 'me:hand' : null">
       <h4>{{ TITLES[k] }} <span>({{ list(k).length }})</span></h4>
-      <div class="row">
+      <div v-fit class="row">
         <button
           v-for="id in list(k)"
           :key="id"
@@ -84,17 +84,17 @@ h4 { margin: 0 0 0.3rem 0.15rem; font-size: 0.88rem; font-weight: 700; color: #2
 h4 span { color: #6d8a73; font-weight: 600; }
 .row {
   flex: 1; min-height: 0; display: flex; align-items: stretch;
-  container-type: size;
 }
+/* --rh = ความสูงจริงของแถว (วัดด้วย v-fit แทน container query ที่เครื่องรุ่นเก่าไม่รองรับ) */
 .card {
-  position: relative; flex: 0 1 calc(100cqh * 0.714); min-width: 0; height: 100%;
+  position: relative; flex: 0 1 calc(var(--rh, 6rem) * 0.714); min-width: 0; height: 100%;
   padding: 0; border: 0; background: none; cursor: pointer; overflow: visible;
   transition: transform 0.15s ease;
 }
 .card + .card { margin-left: 0.3rem; }
 .card:last-child { flex-shrink: 0; }
 .card img {
-  display: block; height: 100cqh; width: auto; max-width: none; aspect-ratio: 5 / 7;
+  display: block; height: var(--rh, 6rem); width: auto; max-width: none; aspect-ratio: 5 / 7;
   border-radius: 7%/5%; box-shadow: 0 2px 8px rgba(40, 70, 50, 0.22);
 }
 .card:hover { transform: translateY(-4px); z-index: 1; }
