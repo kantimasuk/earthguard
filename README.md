@@ -40,8 +40,8 @@ earthguard/
 │     └─ game/             Phaser 3: GameScene (โต๊ะ+แอนิเมชัน), cardArt (วาดการ์ด), boot, reduce
 ├─ server/                 Node.js + Express 5 + Socket.IO (deploy บน Railway)
 │  └─ src/
-│     ├─ routes/auth.js    /api/auth/sync, /me, /forgot-password, /reset-password
-│     ├─ services/         users (สร้าง/ผูกบัญชี), passwordReset, mailer, firebaseAdmin
+│     ├─ routes/auth.js    /api/auth/sync, /me
+│     ├─ services/         users (สร้าง/ผูกบัญชี), firebaseAdmin
 │     ├─ middleware/       ตรวจ Firebase ID token
 │     ├─ routes/sessions.js /api/sessions (รอบการเล่น, Pre/Post-test, สรุปผล, ออกจากเกม)
 │     ├─ socket/           Socket.IO: singlePlayer.js (ห้องเกม)
@@ -104,7 +104,7 @@ npm run dev                 # http://localhost:5173
 
 **Loading** — โหลดฟอนต์ เสียง รูป และโค้ดของหน้าอื่นล่วงหน้า เปอร์เซ็นต์คำนวณจากงานที่เสร็จจริง (ไฟล์ที่ดาวน์โหลดนับตาม byte) การแตะ "แตะเพื่อเริ่ม" จะปลดล็อกเสียง และขอเต็มจอ + ล็อกแนวนอน (ได้บน Android Chrome; iPhone ไม่รองรับ จึงใช้หน้า "หมุนโทรศัพท์" แทน) ทุกหน้าต้องผ่าน Loading ก่อนเสมอ เปิดลิงก์ตรงก็จะผ่าน Loading แล้วค่อยไปหน้านั้น
 
-**ลืมรหัสผ่าน** — ทำเองที่ backend (ไม่ใช้อีเมลรีเซ็ตของ Firebase เพราะกำหนดอายุ 30 นาทีไม่ได้) token สุ่ม 32 byte เก็บเฉพาะ hash ใน `password_reset_tokens`, หมดอายุ 30 นาที, ใช้ได้ครั้งเดียว, ขอลิงก์ใหม่แล้วลิงก์เก่าใช้ไม่ได้, ตอบข้อความเดียวกันเสมอ, จำกัด 5 ครั้ง/15 นาที/IP ถ้ายังไม่ตั้งค่า SMTP ลิงก์จะถูกพิมพ์ใน console ของ server (สะดวกตอน Demo)
+**ลืมรหัสผ่าน** — ใช้อีเมลรีเซ็ตของ Firebase Authentication (`sendPasswordResetEmail`) ส่งจากเซิร์ฟเวอร์ของ Google โดยตรง ไม่ผ่าน backend เพราะ Railway แพ็กเกจ Hobby ปิดพอร์ต SMTP ทำให้ส่งอีเมลจาก backend ไม่ได้ ลิงก์มีอายุ 1 ชั่วโมง ใช้ได้ครั้งเดียว ตอบข้อความเดียวกันเสมอไม่ว่าจะมีบัญชีหรือไม่ ถ้าตั้ง *Custom action URL* ใน Firebase (Authentication → Templates → แก้เทมเพลต → Customize action URL) เป็น `https://<โดเมนเว็บ>/auth/action` ลิงก์ในอีเมลจะเปิดหน้าตั้งรหัสผ่านของเกมเอง (บังคับเงื่อนไขรหัสผ่านเดียวกับหน้าสมัคร) ถ้าไม่ตั้ง จะเปิดหน้าของ Firebase แทน
 
 **Google + บัญชีอีเมลเดิม** — Firebase ใช้ uid เดิมเมื่ออีเมลตรงกัน และ backend ผูกด้วยอีเมลใน MySQL อีกชั้น จึงไม่เกิดบัญชีซ้ำ ข้อควรรู้: ถ้าบัญชีที่สมัครด้วยอีเมล **ยังไม่ได้ยืนยันอีเมล** แล้วมาเข้าด้วย Google ครั้งแรก Firebase จะลบรหัสผ่านเดิมออกเพื่อความปลอดภัย (ข้อมูลในเกมไม่หาย ผู้ใช้ตั้งรหัสใหม่ได้ผ่าน "ลืมรหัสผ่าน") ระบบจึงส่งอีเมลยืนยันให้อัตโนมัติหลังสมัคร — ถ้ายืนยันแล้ว จะเข้าได้ทั้งสองแบบ
 
@@ -133,9 +133,6 @@ npm run dev                 # http://localhost:5173
 | GET | `/api/health` | – | ตรวจ server + ฐานข้อมูล |
 | POST | `/api/auth/sync` | Bearer | สร้าง/ผูก/อัปเดตผู้ใช้ใน MySQL หลัง login/register |
 | GET | `/api/auth/me` | Bearer | ข้อมูลโปรไฟล์ |
-| POST | `/api/auth/forgot-password` | – | `{ email }` ส่งลิงก์รีเซ็ต |
-| GET | `/api/auth/reset-password/verify?token=` | – | ตรวจว่าลิงก์ยังใช้ได้ |
-| POST | `/api/auth/reset-password` | – | `{ token, password }` ตั้งรหัสใหม่ |
 
 ## แก้ข้อมูลการ์ด/ข้อสอบ
 

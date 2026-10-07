@@ -2,14 +2,14 @@
 import { useRouter } from 'vue-router';
 import AppNavbar from '@/components/AppNavbar.vue';
 import ModeArt from '@/components/ModeArt.vue';
-import { useAuthStore } from '@/stores/auth';
+import LivelyScene from '@/components/LivelyScene.vue';
 import { useToastStore } from '@/stores/toast';
 import { play } from '@/services/sound';
 
 const router = useRouter();
 const toast = useToastStore();
-const auth = useAuthStore();
 
+// ดีไซน์แบบเกม (แบบเดิมเก็บไว้ที่ MainMenuView.classic.vue — อยากกลับไปใช้: คัดลอกไฟล์นั้นมาทับไฟล์นี้)
 // โหมดการเล่น — Demo เปิดเฉพาะ Single Player (อีก 2 โหมดแสดงไว้ กดแล้วขึ้นแจ้งเตือน)
 const modes = [
   {
@@ -41,15 +41,6 @@ const modes = [
   },
 ];
 
-// ความก้าวหน้าการเรียนรู้ (%) — ตอนนี้ยังไม่มีระบบคลังความรู้ จึงเป็น 0
-// TODO: คำนวณจากการ์ดความรู้ที่ผู้เล่นปลดล็อกแล้ว เมื่อทำระบบคลังความรู้
-const learningProgress = 0;
-
-function openKnowledge() {
-  play('click');
-  toast.show('คลังความรู้ยังไม่เปิดให้ใช้งาน');
-}
-
 function choose(m) {
   if (!m.enabled) {
     play('click');
@@ -63,12 +54,12 @@ function choose(m) {
 
 <template>
   <main class="page menu">
+    <LivelyScene />
     <AppNavbar />
 
     <section class="content">
       <header class="heading">
-        <p class="hello">สวัสดี {{ auth.displayName }}</p>
-        <h1>เลือกโหมดการเล่น</h1>
+        <h1><span>เลือกโหมดการเล่น</span></h1>
       </header>
 
       <div class="modes">
@@ -79,8 +70,10 @@ function choose(m) {
           :class="[`tone-${m.tone}`, { disabled: !m.enabled }]"
           :style="{ animationDelay: 0.08 * i + 's' }"
         >
-          <h2 class="title">{{ m.title }}</h2>
+          <!-- ริบบิ้นชื่อโหมด -->
+          <h2 class="title"><span>{{ m.title }}</span></h2>
           <div class="art">
+            <i class="spark s1" /><i class="spark s2" /><i class="spark s3" />
             <ModeArt :name="m.art" :label="m.title" />
           </div>
           <p class="desc">{{ m.desc[0] }}<br />{{ m.desc[1] }}</p>
@@ -91,129 +84,131 @@ function choose(m) {
         </article>
       </div>
 
-      <!-- แถบความก้าวหน้าการเรียนรู้ (เฉพาะจอคอม/แท็บเล็ต) -->
-      <div class="learning">
-        <div class="learning-info">
-          <h3>ความก้าวหน้าการเรียนรู้</h3>
-          <div class="lbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="learningProgress">
-            <div class="lfill" :style="{ width: learningProgress + '%' }"></div>
-            <span>{{ learningProgress }}%</span>
-          </div>
-        </div>
-        <button type="button" class="kbtn" @click="openKnowledge">
-          ดูคลังความรู้
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-        </button>
-      </div>
     </section>
   </main>
 </template>
 
 <style scoped>
+/* =========================================================
+   หน้าเลือกโหมด — ดีไซน์แบบเกม (โทนพาสเทล ขอบขาวหนา ปุ่มนูน ริบบิ้น)
+   ========================================================= */
 .content {
   flex: 1; min-height: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: clamp(14px, 4.5vh, 40px);   /* ระยะห่างระหว่างหัวข้อกับการ์ด */
+  gap: clamp(14px, 4vh, 36px);
   padding: clamp(6px, 2vh, 20px) 0;
 }
-.heading { display: flex; flex-direction: column; align-items: center; text-align: center; line-height: 1.25; }
-/* มินิมอลแบบนุ่ม ๆ: 2 บรรทัดสไตล์เดียวกัน สีเขียวเข้มนุ่ม มีแสงขาวฟุ้งจาง ๆ ให้อ่านง่ายบนท้องฟ้า */
-.hello, .heading h1 {
-  font-family: var(--font-head); font-size: 2.35rem; font-weight: 600; letter-spacing: 0.01em;
-  color: #24452b;
-  text-shadow: 0 0 18px rgba(255, 255, 255, 0.95), 0 0 4px rgba(255, 255, 255, 0.9), 0 2px 0 rgba(255, 255, 255, 0.6);
+
+/* ---------- หัวข้อ ---------- */
+.heading { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.5rem; }
+/* ชื่อหน้าแบบโลโก้เกม: ตัวหนา ขอบขาวหนา + เงาเขียวเป็นชั้น */
+.heading h1 {
+  font-family: var(--font-head); font-size: clamp(2.6rem, 5.2vh, 3.4rem); font-weight: 700; line-height: 1.2; letter-spacing: 0.01em;
+  color: #2f7a3a;
+  text-shadow:
+    -3px -3px 0 #fff, 3px -3px 0 #fff, -3px 3px 0 #fff, 3px 3px 0 #fff,
+    0 -3px 0 #fff, 0 3px 0 #fff, -3px 0 0 #fff, 3px 0 0 #fff,
+    0 7px 0 #9fd18a, 0 10px 18px rgba(30, 80, 40, 0.3);
+  animation: pop-in 0.55s 0.05s var(--ease-back) both;
 }
 
 .modes {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 17.5rem));
+  display: grid; grid-template-columns: repeat(3, minmax(0, clamp(17.5rem, 25vw, 23rem)));
   justify-content: center;
-  gap: clamp(12px, 2.5vw, 32px);
+  gap: clamp(14px, 2.6vw, 34px);
   width: 100%; min-height: 0;
+  padding-top: 0.9rem; /* เผื่อริบบิ้นที่ยื่นขึ้นด้านบนการ์ด */
 }
 
 /* ---------- การ์ดโหมด ---------- */
 .mode {
-  --c: #3a7d2c;      /* สีหัวข้อ/เส้นขอบ */
-  --btn: #2f6b2c;    /* สีปุ่ม */
-  --btn-edge: #214f1f;
+  --c: #4caf5a; --c-light: #9be4a0; --c-deep: #2f7a3a; --c-soft: #e6f7e2;
   position: relative; min-width: 0;
   display: flex; flex-direction: column; align-items: center; text-align: center;
-  padding: 1rem 1rem 1.1rem;
-  border-radius: 1.1rem;
-  background: rgba(255, 255, 255, 0.96);
-  border: 2px solid var(--c);
-  box-shadow: 0 0.7rem 1.6rem rgba(20, 50, 20, 0.2);
+  padding: 1.9rem 1.2rem 1.3rem;
+  border-radius: 1.6rem;
+  background: linear-gradient(180deg, var(--c-soft) 0%, #ffffff 58%);
+  border: 4px solid #ffffff;
+  box-shadow: 0 0 0 3px var(--c), 0 7px 0 3px var(--c-deep), 0 16px 30px rgba(20, 50, 20, 0.25);
   animation: card-in 0.6s var(--ease-back) both;
+  transition: transform 0.25s var(--ease-back);
 }
-.tone-blue { --c: #2b76ad; --btn: #1f6d9e; --btn-edge: #154e73; }
-.tone-purple { --c: #7a5aa8; --btn: #7a5aa8; --btn-edge: #57407a; }
+.tone-blue { --c: #3d8fd1; --c-light: #9fd2ff; --c-deep: #22649a; --c-soft: #e3f1fd; }
+.tone-purple { --c: #9170c4; --c-light: #cdb8f0; --c-deep: #634594; --c-soft: #f0e9fb; }
+.mode:not(.disabled):hover { transform: translateY(-6px) rotate(-0.6deg); }
+.mode.disabled:hover { transform: translateY(-3px); }
 
-.title { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.04em; color: var(--c); }
-.art { width: 92%; height: clamp(5.5rem, 24vh, 12rem); flex: none; margin: 0.5rem 0 0.4rem; }
-.desc { font-size: 0.92rem; line-height: 1.35; color: var(--text); min-height: 2.7em; }
+/* ริบบิ้นชื่อโหมด (ยื่นออกจากขอบบน) */
+.title {
+  position: absolute; top: -1.15rem; left: 50%; transform: translateX(-50%);
+  white-space: nowrap; font-size: 1.1rem; font-weight: 700; letter-spacing: 0.06em;
+}
+.title span {
+  display: inline-block; padding: 0.35rem 1.3rem;
+  border-radius: 999px; color: #ffffff;
+  background: linear-gradient(180deg, var(--c-light) 0%, var(--c) 100%);
+  border: 3px solid #ffffff;
+  box-shadow: 0 3px 0 var(--c-deep), 0 6px 12px rgba(20, 50, 20, 0.2);
+  text-shadow: 0 2px 0 var(--c-deep);
+}
+.art { position: relative; width: 94%; height: clamp(7rem, 33vh, 16rem); flex: none; margin: 0.4rem 0 0.4rem; transition: transform 0.3s var(--ease-back); }
+.mode:not(.disabled):hover .art { transform: scale(1.05); }
+/* ประกายระยิบระยับหลังภาพ */
+.spark { position: absolute; width: 10px; height: 10px; background: var(--c-light); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); animation: twinkle 2.4s ease-in-out infinite; }
+.s1 { left: 4%; top: 12%; }
+.s2 { right: 6%; top: 4%; width: 14px; height: 14px; animation-delay: -0.8s; }
+.s3 { right: 12%; bottom: 10%; width: 8px; height: 8px; animation-delay: -1.6s; }
+.desc { font-size: 1rem; line-height: 1.4; color: #4a5a4d; min-height: 2.8em; }
 
+/* ปุ่มหลักแบบเกม: ไล่สี + ขอบขาว + เงานูนด้านล่าง */
 .cta {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-  width: 100%; min-height: 2.8rem; margin-top: 0.7rem;
-  border: 0; border-radius: 0.8rem; cursor: pointer;
-  background: var(--btn); color: #ffffff;
-  font-family: var(--font-head); font-size: 1.05rem; font-weight: 500;
-  box-shadow: 0 0.2rem 0 var(--btn-edge), 0 0.4rem 0.8rem rgba(20, 50, 20, 0.2);
-  transition: transform 0.12s var(--ease-out), filter 0.15s;
+  width: 100%; min-height: 3.3rem; margin-top: 0.85rem;
+  border: 3px solid #ffffff; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(180deg, var(--c-light) 0%, var(--c) 55%, var(--c-deep) 100%);
+  color: #ffffff; text-shadow: 0 2px 0 var(--c-deep);
+  font-family: var(--font-head); font-size: 1.2rem; font-weight: 700;
+  box-shadow: 0 5px 0 var(--c-deep), 0 9px 16px rgba(20, 50, 20, 0.25);
+  transition: transform 0.12s var(--ease-out), box-shadow 0.12s, filter 0.15s;
 }
-.cta svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
-.mode:not(.disabled) .cta:hover { filter: brightness(1.08); }
-.mode:not(.disabled) .cta:active { transform: translateY(2px); box-shadow: 0 0.05rem 0 var(--btn-edge); }
-/* โหมดที่ยังไม่เปิด: หน้าตาเหมือนเดิม แต่กดไม่ได้ (กดแล้วมีแจ้งเตือน) */
-.mode.disabled .cta { cursor: not-allowed; }
+.cta svg { width: 1.1rem; height: 1.1rem; fill: currentColor; filter: drop-shadow(0 2px 0 var(--c-deep)); }
 
-/* ---------- แถบความก้าวหน้าการเรียนรู้ ---------- */
-.learning {
-  width: min(100%, calc(3 * 17.5rem + 2 * clamp(12px, 2.5vw, 32px)));
-  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
-  padding: 1rem 1.6rem; border-radius: 1.1rem;
-  background: rgba(255, 255, 255, 0.96); border: 2px solid var(--accent);
-  box-shadow: 0 0.7rem 1.6rem rgba(20, 50, 20, 0.2);
-  animation: card-in 0.6s 0.25s var(--ease-back) both;
-}
-.learning-info { flex: 1; min-width: 0; max-width: 26rem; display: flex; flex-direction: column; gap: 0.45rem; }
-.learning h3 { font-size: 1.15rem; font-weight: 600; color: var(--text); }
-.lbar {
-  position: relative; height: 1.4rem; border-radius: 999px; overflow: hidden;
-  background: #e4ded4; border: 1.5px solid var(--leaf-soft);
-}
-.lfill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--leaf); transition: width 0.6s var(--ease-out); }
-.lbar span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 0.85rem; font-weight: 600; color: var(--text); }
-.kbtn {
-  display: inline-flex; align-items: center; gap: 0.5rem; flex: none;
-  min-height: 2.8rem; padding: 0 1.1rem 0 1.3rem; border: 0; border-radius: 0.8rem; cursor: pointer;
-  background: var(--leaf); color: #ffffff;
-  font-family: var(--font-head); font-size: 1.05rem; font-weight: 500;
-  box-shadow: 0 0.2rem 0 var(--leaf-dark), 0 0.4rem 0.8rem rgba(20, 50, 20, 0.2);
-}
-.kbtn svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-.kbtn:active { transform: translateY(2px); box-shadow: 0 0.05rem 0 var(--leaf-dark); }
+.mode:not(.disabled) .cta:hover { filter: brightness(1.07); }
+.mode:not(.disabled) .cta:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--c-deep), 0 3px 8px rgba(20, 50, 20, 0.2); animation: none; }
+/* โหมดที่ยังไม่เปิด: ปุ่มจางลงนิด กดได้แต่ขึ้นแจ้งเตือน */
+.mode.disabled .cta { cursor: not-allowed; filter: saturate(0.55) brightness(1.05); }
+.mode.disabled .art { filter: saturate(0.85); }
 
-@keyframes card-in { from { opacity: 0; transform: translateY(20px) scale(0.95); } }
+@keyframes card-in { from { opacity: 0; transform: translateY(24px) scale(0.92); } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.7); } }
+@keyframes twinkle { 0%, 100% { opacity: 0.25; transform: scale(0.6) rotate(0deg); } 50% { opacity: 1; transform: scale(1) rotate(45deg); } }
+@keyframes cta-glow { 50% { box-shadow: 0 5px 0 var(--c-deep), 0 9px 16px rgba(20, 50, 20, 0.25), 0 0 0 5px color-mix(in srgb, var(--c-light) 55%, transparent); } }
+@media (prefers-reduced-motion: reduce) {
+  .spark, .mode:not(.disabled) .cta { animation: none; }
+}
 
 /* ---------- โทรศัพท์แนวนอน ---------- */
-/* โทรศัพท์: ไม่แสดงแถบความก้าวหน้า (พื้นที่ไม่พอ) */
-@media (max-height: 560px) {
-  .learning { display: none; }
-}
 @media (max-height: 500px) {
-  .content { justify-content: center; gap: clamp(10px, 4vh, 22px); padding: 2px 0 6px; }
-  .hello, .heading h1 { font-size: 1.55rem; }
-  .modes { grid-template-columns: repeat(3, minmax(0, 15rem)); gap: clamp(10px, 2.5vw, 24px); }
-  .mode { padding: 0.55rem 0.7rem 0.7rem; border-radius: 0.9rem; border-width: 1.5px; }
-  .title { font-size: 0.9rem; }
-  .art { height: min(33vh, 9.5rem); margin: 0.3rem 0 0.25rem; }
-  .desc { font-size: 0.72rem; }
-  .cta { min-height: 2.2rem; margin-top: 0.45rem; font-size: 0.85rem; border-radius: 0.65rem; }
-  .cta svg { width: 0.9rem; height: 0.9rem; }
+  .content { justify-content: center; gap: clamp(8px, 3vh, 18px); padding: 2px 0 8px; }
+  .heading { gap: 0.25rem; }
+  .heading h1 {
+    font-size: 1.9rem;
+    text-shadow:
+      -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff, 2px 2px 0 #fff,
+      0 -2px 0 #fff, 0 2px 0 #fff, -2px 0 0 #fff, 2px 0 0 #fff,
+      0 4px 0 #9fd18a, 0 6px 10px rgba(30, 80, 40, 0.3);
+  }
+  .modes { grid-template-columns: repeat(3, minmax(0, 17rem)); gap: clamp(12px, 2.6vw, 26px); padding-top: 0.7rem; }
+  .mode { padding: 1.05rem 0.7rem 0.7rem; border-radius: 1.1rem; border-width: 3px; box-shadow: 0 0 0 2px var(--c), 0 4px 0 2px var(--c-deep), 0 10px 18px rgba(20, 50, 20, 0.22); }
+  .title { top: -0.8rem; font-size: 0.72rem; }
+  .title span { padding: 0.2rem 0.85rem; border-width: 2px; box-shadow: 0 2px 0 var(--c-deep); }
+  .art { height: min(40vh, 11rem); margin: 0.25rem 0 0.2rem; }
+  .desc { font-size: 0.74rem; min-height: 2.6em; }
+  .cta { min-height: 2.2rem; margin-top: 0.4rem; font-size: 0.86rem; border-width: 2px; box-shadow: 0 3px 0 var(--c-deep), 0 5px 10px rgba(20, 50, 20, 0.2); }
+  .cta svg { width: 0.85rem; height: 0.85rem; }
 }
 @media (max-height: 360px) {
-  .hello, .heading h1 { font-size: 1.3rem; }
-  .art { height: 30vh; }
+  .heading h1 { font-size: 1.6rem; }
+  .art { height: 36vh; }
 }
 </style>

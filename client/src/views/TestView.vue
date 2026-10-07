@@ -3,6 +3,7 @@
 // pre : แสดงทีละข้อ ไม่เฉลย → หมดเวลา = ข้อที่ยังไม่ตอบนับผิด แล้วเข้าเกมทันที
 // post: ตอบแล้วเฉลยทันที (เขียว/แดง + คำอธิบาย) → หน้าสรุปผล
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { sceneBg } from '@/services/uiArt';
 import { useRouter } from 'vue-router';
 import GameSettings from '@/components/GameSettings.vue';
 import LoadingScreen from '@/components/loading/LoadingScreen.vue';
@@ -53,7 +54,9 @@ function nodeClass(i) {
 const title = computed(() => (isPost.value ? 'แบบทดสอบหลังเล่น' : 'แบบทดสอบก่อนเล่น'));
 
 onMounted(load);
-onBeforeUnmount(() => clearInterval(tick));
+// พื้นหลังเฉพาะหน้าแบบทดสอบ (assets/ui/bg-test.jpg) — ออกจากหน้าแล้วกลับเป็นพื้นหลังปกติ
+onMounted(() => { sceneBg.key = 'test'; });
+onBeforeUnmount(() => { clearInterval(tick); if (sceneBg.key === 'test') sceneBg.key = null; });
 
 async function load() {
   if (!session.id) return router.replace('/menu');
@@ -221,7 +224,6 @@ function goNext() {
           <div :key="index" class="qarea">
             <article class="board qcard">
               <div class="ribbon small"><span>คำถามที่ {{ index + 1 }}</span></div>
-              <span v-if="q?.category" class="cat">{{ q.category }}</span>
               <div class="qbody"><p class="qtext">{{ q?.question }}</p></div>
             </article>
 
@@ -279,6 +281,8 @@ function goNext() {
 <style scoped>
 /* ธีมสี: ก่อนเล่น = เขียว · หลังเล่น = ฟ้า */
 .test {
+  /* ฟันเฟืองตั้งค่า: แถวเดียวกับวงเวลา ขนาดเท่ากัน (วงเวลา 3.4rem อยู่กลางแถว hud สูง 3.4rem) */
+  --gear-size: 3.4rem; --gear-top: var(--safe-t); --gear-right: var(--safe-r);
   --c: #4caf3f; --c-light: #9be46f; --c-deep: #2c6e28; --c-soft: #cfeabf; --c-bg: #f2faea;
   gap: 0.4rem;
 }
@@ -395,7 +399,7 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
 
 /* ================= ทำข้อสอบ ================= */
 .play { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.3rem; }
-.hud { display: flex; align-items: center; gap: 0.8rem; min-height: 3.4rem; padding-right: 54px; /* เว้นที่ให้ฟันเฟือง */ }
+.hud { display: flex; align-items: center; gap: 0.8rem; min-height: 3.4rem; padding-right: 4.1rem; /* เว้นที่ให้ฟันเฟือง */ }
 .tag {
   flex: none; padding: 0.3rem 0.95rem; border-radius: 999px;
   font-family: var(--font-head); font-weight: 700; font-size: 0.95rem; color: #fff;
@@ -571,16 +575,18 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
   .play-btn { font-size: 1.25rem; }
   .play-btn.small { font-size: 1rem; }
 
-  .hud { min-height: 2.9rem; gap: 0.5rem; padding-right: 48px; }
+  .test { --gear-size: 2.8rem; --gear-top: calc(var(--safe-t) + 0.05rem); }
+  .hud { min-height: 2.9rem; gap: 0.5rem; padding-right: 3.4rem; }
   .tag { font-size: 0.78rem; padding: 0.22rem 0.7rem; }
   .node { width: 1.7rem; height: 1.7rem; font-size: 0.8rem; border-width: 2.5px; }
   .link { height: 0.35rem; }
   .ring { width: 2.8rem; height: 2.8rem; }
   .ring b { font-size: 0.72rem; }
-  .qarea { gap: 0.9rem; padding-top: 0.7rem; }
+  /* ระยะห่างคำถาม ↔ ปุ่มถูก/ผิด กว้างขึ้น (มือถือ) */
+  .qarea { gap: clamp(1.3rem, 8vh, 2.2rem); padding-top: 0.7rem; padding-bottom: 0.3rem; }
   .qcard { padding: 1.6rem 1.3rem 1rem; min-height: 5.5rem; }
   .qtext { font-size: 1.15rem; line-height: 1.55; }
-  .cat { font-size: 0.65rem; top: 0.4rem; right: 0.7rem; }
+  .cat { display: none; } /* มือถือ: ซ่อนป้ายหมวดหมู่ข้อสอบ */
   .choice { min-height: 3.4rem; font-size: 1.4rem; border-width: 3px; border-radius: 1.1rem; }
   .fb { padding: 1rem 1.1rem 0.9rem; gap: 0.45rem; }
   .stamp { font-size: 1.5rem; border-width: 3px; }

@@ -9,6 +9,7 @@ function toProfile(row) {
     displayName: row.display_name,
     photoUrl: row.photo_url,
     providers: row.auth_providers ? row.auth_providers.split(',') : [],
+    privacyVersion: row.privacy_version || null,
   };
 }
 
@@ -58,4 +59,13 @@ export async function upsertFromToken(decoded, requestedName) {
 export async function getByUid(uid) {
   const [[row]] = await pool.query('SELECT * FROM users WHERE firebase_uid = ?', [uid]);
   return row ? toProfile(row) : null;
+}
+
+/** บันทึกว่ายอมรับนโยบายความเป็นส่วนตัวเวอร์ชันนี้แล้ว */
+export async function acceptPrivacy(uid, version) {
+  await pool.query(
+    'UPDATE users SET privacy_version = ?, privacy_accepted_at = UTC_TIMESTAMP() WHERE firebase_uid = ?',
+    [version, uid],
+  );
+  return getByUid(uid);
 }

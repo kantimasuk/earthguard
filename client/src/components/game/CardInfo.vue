@@ -25,7 +25,7 @@ const protectsNames = computed(() => {
 
 <template>
   <div v-if="c" class="info">
-    <CardImg :id="id" class="big" width="min(17rem, 36vw, calc((100dvh - 8.5rem) * 0.714))" />
+    <CardImg :id="id" class="big" width="min(12.5rem, 30vw, calc((100dvh - 9rem) * 0.66))" />
     <div class="txt">
       <span class="type">{{ typeLabel }}</span>
       <h4>{{ c.name }}</h4>
@@ -47,13 +47,16 @@ const protectsNames = computed(() => {
 </template>
 
 <style scoped>
-.info { display: flex; gap: 1.2rem; align-items: flex-start; }
+.info { display: flex; gap: 1rem; align-items: flex-start; }
 .info :deep(.big) { flex: none; filter: drop-shadow(0 0.4rem 0.6rem rgba(0, 0, 0, 0.25)); }
 .txt { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
-.type { align-self: flex-start; font-size: 0.8rem; font-weight: 700; color: #fff; background: var(--accent); padding: 0.1rem 0.7rem; border-radius: 999px; }
-h4 { font-family: var(--font-head); font-size: 1.35rem; color: #24452b; line-height: 1.3; }
-.body { font-size: 1rem; line-height: 1.6; color: var(--text); }
-.meta { font-size: 0.92rem; line-height: 1.55; color: var(--text-muted); padding: 0.35rem 0.6rem; border-radius: 0.6rem; background: #f4f0e2; }
+.type {
+  align-self: flex-start; font-size: 0.74rem; font-weight: 700; color: #fff; padding: 0.12rem 0.7rem; border-radius: 999px;
+  background: linear-gradient(180deg, #7fd49a, #45a064); border: 2px solid #fff; box-shadow: 0 2px 0 #2f7446;
+}
+h4 { font-family: var(--font-head); font-size: 1.2rem; color: #24452b; line-height: 1.3; }
+.body { font-size: 0.92rem; line-height: 1.55; color: var(--text); }
+.meta { font-size: 0.84rem; line-height: 1.5; color: var(--text-muted); padding: 0.35rem 0.6rem; border-radius: 0.7rem; background: #f4f8f1; border: 1.5px solid #e2eedc; }
 .meta b { color: var(--leaf-dark); }
 @media (max-height: 500px) {
   .info { gap: 0.8rem; }

@@ -1,4 +1,5 @@
 import { Howl, Howler } from 'howler';
+import { setMusicMaster } from './music';
 
 // ค่าระดับเสียงเก็บไว้ในเครื่อง → คงอยู่ข้ามหน้าและข้ามรอบการเล่น
 const KEY = 'eg.audio';
@@ -13,8 +14,11 @@ function readSettings() {
 }
 
 const settings = readSettings();
+Howler.autoSuspend = false; // ไม่ให้ Howler พักระบบเสียงเองหลังเงียบ 30 วินาที (เสียงเอฟเฟกต์แรกจะไม่หาย/ไม่หน่วง)
 Howler.volume(settings.volume);
 Howler.mute(settings.muted);
+const syncMusic = () => setMusicMaster(settings.muted ? 0 : settings.volume);
+syncMusic();
 
 export const SFX_FILES = {
   click: '/audio/click.wav',
@@ -35,6 +39,10 @@ export const SFX_FILES = {
   lose: '/audio/lose.wav',
   tick: '/audio/tick.wav',
   turn: '/audio/turn.wav',
+  // ฉากเปลี่ยนช่วง (สร้างด้วย tools/music/make_music.py) — ลม + เสียงคำราม + ตูม + ไรเซอร์
+  env2: '/audio/env2.mp3',
+  env3: '/audio/env3.mp3',
+  endfx: '/audio/endfx.mp3', // ฉากจบเกม 3 ภาพ
 };
 
 const sounds = {};
@@ -60,11 +68,13 @@ export const audioSettings = {
   setVolume(v) {
     settings.volume = Math.min(1, Math.max(0, Math.round(v * 10) / 10));
     Howler.volume(settings.volume);
+    syncMusic();
     save();
   },
   setMuted(m) {
     settings.muted = Boolean(m);
     Howler.mute(settings.muted);
+    syncMusic();
     save();
   },
 };

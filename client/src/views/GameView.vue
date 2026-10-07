@@ -20,10 +20,13 @@ import TimerRing from '@/components/game/TimerRing.vue';
 import BuildSheet from '@/components/game/BuildSheet.vue';
 import ThreatPanel from '@/components/game/ThreatPanel.vue';
 import PhaseSplash from '@/components/game/PhaseSplash.vue';
+import EnvShift from '@/components/game/EnvShift.vue';
+import EndShift from '@/components/game/EndShift.vue';
+import { setMusic, preloadMusic, duckMusic, unduckMusic } from '@/services/music';
 import PlayersPanel from '@/components/game/PlayersPanel.vue';
 import MyCards from '@/components/game/MyCards.vue';
 import LoadingScreen from '@/components/loading/LoadingScreen.vue';
-import { sceneBg, preloadUi } from '@/services/uiArt';
+import { sceneBg, preloadUi, uiImg } from '@/services/uiArt';
 import { connectGameSocket, request } from '@/services/gameSocket';
 import { bootGame } from '@/game/boot';
 import { applyEvent, missingFor } from '@/game/reduce';
@@ -58,6 +61,9 @@ const selection = ref([]);        // โหมดหยิบ 3 ใบตำแ�
 const threatUI = ref(null);
 const banner = ref(null);
 const splash = ref(null);          // ภาพประกาศช่วงเต็มจอ (PhaseSplash)
+const flyTop = ref(false);         // ระหว่างการ์ดบินไป/มาจากแผงผู้เล่น: canvas อยู่ชั้นบนสุด
+const endShow = ref(null);         // ฉากจบเกม 3 ภาพ (UI ทั้งหมดหายไประหว่างนี้)
+const envShift = ref(null);        // แอนิเมชันสิ่งแวดล้อมแย่ลงตอนเข้าช่วง 2/3 (UI ทั้งหมดหายไประหว่างนี้)
 // หน้าโหลดเต็มจอระหว่างเตรียมโต๊ะ: ความคืบหน้าจริงตามขั้น (ต่อเซิร์ฟเวอร์ → เข้าห้อง → วาดโต๊ะ)
 const showLoader = ref(true);
 const loadProgress = ref(5);
@@ -81,10 +87,15 @@ function fitBoard() {
   const num = (v) => parseFloat(cs.getPropertyValue(v)) || 0;
   const lw = el.firstElementChild?.getBoundingClientRect().width || num('--lw');
   const gap = num('--gap');
-  const rwMin = num('--rw') || 170;
+  // หมายเหตุ: --rw เป็น clamp(...) → อ่านค่าจาก CSS เป็นตัวเลขตรง ๆ ไม่ได้ จึงคำนวณ clamp เดียวกันใน JS
+  const vw = window.innerWidth;
+  const clampPx = (lo, v, hi) => Math.max(lo, Math.min(v, hi));
+  const rwMin = phoneUI.value ? clampPx(170, vw * 0.22, 196) : clampPx(250, vw * 0.22, 440);
   const rwMax = num('--rwmax') || rwMin;
   const W = el.clientWidth;
-  const ideal = scene.idealWidth(el.clientHeight);                  // โต๊ะกว้างเท่าไรถึงพอดีความสูง
+  // มือถือ: ช่องโต๊ะยืดเลยขอบบน/ล่างของเลย์เอาต์ (margin ติดลบ) → ใช้ความสูงจริงของช่องโต๊ะ
+  const bh = boardEl.value?.getBoundingClientRect().height || el.clientHeight;
+  const ideal = scene.idealWidth(bh);                                // โต๊ะกว้างเท่าไรถึงพอดีความสูง
   const board = Math.max(120, Math.min(ideal, W - lw - rwMin - 2 * gap)); // ไม่เบียดคอลัมน์ขวาจนต่ำกว่าขั้นต่ำ
   const right = Math.max(rwMin, Math.min(rwMax, W - lw - board - 2 * gap)); // ขวาได้ที่ที่เหลือ (ไม่เกินค่าสูงสุด)
   cols.value = [Math.floor(board), Math.floor(right)];
@@ -99,16 +110,35 @@ const panel = ref(null);                             // มือถือ: ล�
 const piles = ref(null);                             // ตำแหน่งกองจั่ว/สาธารณะ/กองทิ้ง (จาก Phaser) → วาดป้าย HTML
 const pileStyle = (r) => (r ? { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' } : { display: 'none' });
 let panelTimer = null;
+// มือถือ: แตะที่อื่น (นอกป๊อปอัปการ์ด และนอกปุ่มเปิด) → ปิดป๊อปอัป
+const popEl = ref(null);
+function onOutside(e) {
+  if (!panel.value || !popEl.value) return;
+  if (popEl.value.contains(e.target) || e.target.closest?.('.pbtns, .prow, .modal, .backdrop')) return;
+  closePanel();
+}
+onMounted(() => window.addEventListener('pointerdown', onOutside, true));
+onBeforeUnmount(() => window.removeEventListener('pointerdown', onOutside, true));
 function openPanel(k, ms = 0) {
   if (!phoneUI.value) return;
   clearTimeout(panelTimer);
   panel.value = k;
   if (ms) panelTimer = setTimeout(() => { if (panel.value === k) panel.value = null; }, ms);
 }
+// ปิดแล้วเว้น 450ms ก่อนเปิดใหม่ได้: บน iPhone การแตะปุ่ม X อาจมี "คลิกซ้ำ" ตกลงไปโดนกล่องการ์ดที่อยู่ข้างใต้
+// → ป๊อปอัปการ์ดในมือเด้งขึ้นมาแทนทันที (ต้องกดปิดหลายรอบ)
+let panelClosedAt = 0;
+function closePanel() {
+  clearTimeout(panelTimer);
+  if (panel.value) panelClosedAt = performance.now();
+  panel.value = null;
+}
 function togglePanel(k) {
+  if (!panel.value && performance.now() - panelClosedAt < 450) return;
   play('click');
   clearTimeout(panelTimer);
-  panel.value = panel.value === k ? null : k;
+  if (panel.value === k) return closePanel();
+  panel.value = k;
 }
 /** ปุ่มเปิดลิ้นชักการ์ด: เปิดแท็บที่น่าดูที่สุด (มีการ์ดสิทธิที่สร้างได้ → แท็บสิทธิ, ไม่งั้นการ์ดในมือ) */
 function toggleDrawer() {
@@ -118,14 +148,18 @@ function toggleDrawer() {
 // ---- แอนิเมชันการ์ดบินบนแผงของเรา (HTML + Web Animations API) ----
 const flying = ref([]);          // id การ์ดที่กำลังบิน → ซ่อนใบจริงใน MyCards
 const freshBuilt = ref(null);    // การ์ดที่เพิ่งสร้าง → เรืองแสง
-const cardRect = (id) => document.querySelector(`.mine-panel [data-card="${id}"]`)?.getBoundingClientRect() || null;
+// ตำแหน่งการ์ดใบนั้นบนจอ (คอม: แผงการ์ดของเรา · มือถือ: กล่องการ์ดในมือ / ป๊อปอัป) — เอาเฉพาะใบที่มองเห็นอยู่
+const cardRect = (id) => {
+  const el = [...document.querySelectorAll(`[data-card="${id}"]`)].find((x) => x.offsetParent);
+  return el ? el.getBoundingClientRect() : null;
+};
 /** สร้างการ์ดลอย (position: fixed) แล้วเล่นคีย์เฟรมจากกรอบ from ไปกรอบ to */
 async function flyCard(id, from, to, { lift = false, duration = 560 } = {}) {
   const img = document.createElement('img');
   img.src = art ? art.url(id) : '';
   Object.assign(img.style, {
     position: 'fixed', left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px`,
-    zIndex: 60, pointerEvents: 'none', borderRadius: '7% / 5%', transformOrigin: '50% 50%',
+    zIndex: 90, pointerEvents: 'none', // อยู่เหนือทุกแผง/ปุ่ม (การ์ดบินต้องเห็นชัดบนสุด) borderRadius: '7% / 5%', transformOrigin: '50% 50%',
     boxShadow: '0 10px 26px rgba(30, 60, 40, 0.35)',
   });
   document.body.appendChild(img);
@@ -160,11 +194,26 @@ async function flyDiscards(ids) {
     await flyCard(id, from, to, { duration: 480 });
   }));
 }
+/** มือถือ: การ์ดสิทธิเด้งขึ้นจากกล่อง "การ์ดสิทธิในมือ" แล้วลอย (บนสุด เหนือทุกอย่าง) ย่อลงไปที่ปุ่ม "สิทธิที่สร้างแล้ว" */
+async function flyRightToBuiltBtn(id, src) {
+  const btn = document.querySelector('.pbtn.built')?.getBoundingClientRect();
+  if (!btn) return;
+  const h = btn.height * 1.1;
+  const to = { left: btn.left + btn.width / 2 - (h * 0.714) / 2, top: btn.top + btn.height / 2 - h / 2, width: h * 0.714, height: h };
+  if (!src) src = { left: to.left - 40, top: to.top - 140, width: 70, height: 98 };
+  flying.value = [...flying.value, id];
+  await flyCard(id, src, to, { lift: true, duration: 820 });
+  flying.value = [];
+  bumpBuilt.value = true; // ปุ่มเด้งรับ
+  setTimeout(() => { bumpBuilt.value = false; }, 700);
+}
+const bumpBuilt = ref(false);
 /** การ์ดสิทธิ: เด้งขึ้นจาก "การ์ดสิทธิในมือ" (หรือโซนสาธารณะ) แล้วลอยไปวางต่อท้ายใน "สิทธิที่สร้างแล้ว" */
 async function flyRightToBuilt(id, from) {
   let src = from === 'public' && piles.value?.pub
     ? { left: piles.value.pub.x, top: piles.value.pub.y, width: piles.value.pub.w, height: piles.value.pub.h }
     : cardRect(id);
+  if (phoneUI.value) return flyRightToBuiltBtn(id, src);
   const row = document.querySelector('.mine-panel .sec.built .row')?.getBoundingClientRect();
   if (!row) return;
   const cards2 = [...document.querySelectorAll('.mine-panel .sec.built .card')];
@@ -203,6 +252,14 @@ function showIntent(i) {
 }
 
 const modal = reactive({ card: null, hand: false, opp: null, pub: false, ability: false, log: false, rules: false, build: false });
+// แตะการ์ดบนโต๊ะ → ป๊อปอัปรายละเอียดการ์ดใบนั้น
+function openCard(id) {
+  if (!id) return;
+  play('click');
+  modal.card = id;
+}
+// รูปการ์ด (ใช้ในตัวอย่างการ์ดในมือบนมือถือ)
+const artUrl = (id) => (art ? art.url(id) : '');
 
 let socket = null;
 let scene = null;
@@ -326,9 +383,10 @@ async function join(isReconnect) {
       boardRect: () => rectOf(boardEl.value),
       onLayout: (r) => { piles.value = r; },
       anchor: (pid, kind) => anchorFor(pid, kind),
+      flyTop: (v) => { flyTop.value = v; }, // การ์ดบินออกนอกโต๊ะ → ยก canvas ขึ้นเหนือแผง HTML ชั่วคราว
       on: {
         lineTap, slotTap,
-        cardInfo: (id) => { if (id) { play('click'); modal.card = id; } },
+        cardInfo: (id) => openCard(id),
         opponent: (id) => { play('click'); modal.opp = id; },
         myArea: () => { play('click'); modal.hand = true; },
         publicZone: () => { play('click'); modal.pub = true; },
@@ -381,7 +439,7 @@ function rectOf(el) {
 /** จุดหมายของการ์ดที่บินเข้าหาผู้เล่น: แถวใน "ผู้เล่นในห้อง" หรือ "การ์ดของเรา" (มือถือ = ปุ่มลัด) */
 function anchorFor(pid, kind) {
   const keys = pid === me.value
-    ? (kind === 'built' ? ['me:built', 'btn:cards'] : ['me:hand', 'btn:cards'])
+    ? (kind === 'built' ? ['me:built', 'btn:built', 'btn:cards'] : ['me:hand', 'btn:cards'])
     : [pid];
   for (const k of keys) {
     const el = [...document.querySelectorAll(`[data-anchor="${k}"]`)].find((x) => x.offsetParent);
@@ -502,6 +560,9 @@ watch(() => view.value && `${view.value.phase}|${view.value.stage}`, () => {
   const v = view.value;
   if (!v) return;
   sceneBg.key = v.stage === 'ended' ? null : BG_OF[v.phase] || 'game';
+  // เพลงตามช่วง (ช่วงที่ 1 สดใส · 2 ตึงเครียด · 3 ดราม่า · จบเกม = ผ่อนคลาย) — ระหว่างฉากเปลี่ยนช่วง ฉากจะเปลี่ยนเพลงเอง
+  if (!envShift.value && !endShow.value) setMusic(v.stage === 'ended' ? 'end' : `p${Math.min(3, v.phase || 1)}`);
+  if (v.phase < 3) preloadMusic(`p${v.phase + 1}`);
 });
 
 async function handle(e) {
@@ -534,12 +595,12 @@ async function handle(e) {
       await scene.takeCards(e.player, e.slots);
       if (e.auto && e.player === me.value) notify('หมดเวลา! ระบบสุ่มหยิบแถวให้', 'error');
       else notify(e.player === me.value ? 'คุณหยิบการ์ด 3 ใบ' : `${pname} หยิบการ์ด 3 ใบ`);
-      if (e.player === me.value) openPanel('acts', 3500); // มือถือ: กางการ์ดในมือให้เห็นใบที่เพิ่งได้ แล้วหุบเอง
+      // (มือถือ: ไม่เด้งป๊อปอัปเอง — การ์ดในมือแสดงอยู่ในกล่อง "การ์ดในมือ" ตลอดแล้ว)
       break;
     case 'build': {
       const rn = cards[e.right]?.shortName;
       play('build');
-      if (e.player === me.value && !phoneUI.value && document.querySelector('.mine-panel')) {
+      if (e.player === me.value && (phoneUI.value || document.querySelector('.mine-panel'))) {
         // คอม: แอนิเมชันเป็น HTML (อยู่เหนือแผงการ์ดของเรา) → ทิ้งการ์ดกิจกรรมลงกองทิ้ง แล้วการ์ดสิทธิเด้งไปช่อง "สิทธิที่สร้างแล้ว"
         await flyDiscards(e.discards);
         await flyRightToBuilt(e.right, e.from);
@@ -548,7 +609,6 @@ async function handle(e) {
         await scene.rightToBuilt(e.player, e.right, e.from);
       }
       notify(e.player === me.value ? `สร้าง "${rn}" สำเร็จ! +${cards[e.right].points} คะแนน` : `${pname} สร้าง "${rn}"`, e.player === me.value ? 'ok' : 'info');
-      if (e.player === me.value) openPanel('built', 2600); // มือถือ: โชว์สิทธิที่เพิ่งสร้างแป๊บหนึ่ง
       break;
     }
     case 'unlock':
@@ -568,9 +628,31 @@ async function handle(e) {
       await scene.dealToSlot(e.slot, e.card);
       break;
     case 'phase':
-      play(e.phase >= 3 ? 'threat' : 'phase');
-      // เปลี่ยนพื้นหลังตอนภาพกระแทกเต็มจอพอดี (จุดที่ 5–6)
-      await showSplash(`p${e.phase}`, `ช่วงที่ ${e.phase}`, PHASE_SUB[e.phase], 2600, () => { sceneBg.key = BG_OF[e.phase]; });
+      if (e.phase < 2) play('phase');
+      if (e.phase >= 2) {
+        // ช่วง 2/3: ซ่อน UI ทั้งหมด → ฉากสิ่งแวดล้อมแย่ลง (ควัน ฝุ่น ใบไม้แห้ง/ลูกไฟ จอสั่น) พร้อมเปลี่ยนพื้นหลัง
+        // → ภาพประกาศช่วงกระแทกเต็มจอ → UI ค่อย ๆ กลับมา
+        const id = Date.now();
+        modal.card = null;
+        panel.value = null;
+        envShift.value = { phase: e.phase, id, stage: 'shift' };
+        duckMusic(0.15, 1.2);                                  // เพลงเดิมค่อย ๆ เงียบลง
+        play(e.phase >= 3 ? 'env3' : 'env2');                 // เสียงประกอบฉาก: ลมกระโชก คำราม ตูม ไรเซอร์
+        await new Promise((r) => setTimeout(r, 2800));
+        sceneBg.key = BG_OF[e.phase];                          // ฉากเปลี่ยน
+        setMusic(`p${e.phase}`, { fade: 3 });                  // เพลงใหม่ค่อย ๆ ดังขึ้น
+        duckMusic(0.5, 3);                                     // ค่อย ๆ ดังขึ้นครึ่งหนึ่ง (เสียงประกอบฉากยังเด่นอยู่)
+        await new Promise((r) => setTimeout(r, 6200));
+        if (envShift.value?.id === id) envShift.value = { ...envShift.value, stage: 'splash' }; // คำบรรยายหายไปก่อนภาพประกาศ
+        await new Promise((r) => setTimeout(r, 350));
+        await showSplash(`p${e.phase}`, `ช่วงที่ ${e.phase}`, PHASE_SUB[e.phase], 2800);
+        if (envShift.value?.id === id) envShift.value = null;
+        unduckMusic(1.5);
+        await new Promise((r) => setTimeout(r, 600));
+      } else {
+        // เปลี่ยนพื้นหลังตอนภาพกระแทกเต็มจอพอดี (จุดที่ 5–6)
+        await showSplash(`p${e.phase}`, `ช่วงที่ ${e.phase}`, PHASE_SUB[e.phase], 2600, () => { sceneBg.key = BG_OF[e.phase]; setMusic(`p${e.phase}`); });
+      }
       break;
     case 'threat':
       play('threat');
@@ -605,7 +687,7 @@ async function handle(e) {
       break;
     case 'lose':
       if (threatUI.value) threatUI.value.losses[e.player] = e.cards;
-      if (e.player === me.value) { play('lose'); openPanel('acts', 2600); }
+      if (e.player === me.value) play('lose');
       await scene.cardsLeavePlayer(e.player, e.cards, e.toPublic);
       break;
     case 'threatEnd':
@@ -624,9 +706,24 @@ async function handle(e) {
       break;
     case 'end':
       threatUI.value = null;
-      play('threat');
-      // จบเกม → ภาพประกาศสีแดง แล้วพื้นหลังกลับเป็นแบบเดิม
-      await showSplash('end', 'จบเกม!', 'โลกเข้าสู่จุดพลิกผัน', 2600, () => { sceneBg.key = null; });
+      modal.card = null;
+      panel.value = null;
+      // จบเกม → ซ่อน UI ทั้งหมด · ฉากหายนะ 3 ภาพต่อกัน (ภาพละ ~3.7 วิ) พร้อมเพลง/เสียงจบเกม
+      // → ภาพประกาศจบเกม → พื้นหลังกลับเป็นแบบเดิม → การ์ดจุดพลิกผัน + ผลการแข่งขัน
+      {
+        const id = Date.now();
+        setMusic('end', { fade: 2.5 });
+        play('endfx');
+        for (let k = 0; k < 3; k++) {
+          endShow.value = { id, scene: k, stage: 'show' };
+          await new Promise((r) => setTimeout(r, 3700));
+        }
+        endShow.value = { id, scene: 2, stage: 'splash' };
+        await new Promise((r) => setTimeout(r, 300));
+        await showSplash('end', 'จบเกม!', 'โลกเข้าสู่จุดพลิกผัน', 2800, () => { sceneBg.key = null; });
+        if (endShow.value?.id === id) endShow.value = null;
+        await new Promise((r) => setTimeout(r, 700));
+      }
       endUI.value = { card: e.card, result: e.result, stage: 'card' };
       await scene.bigCard(e.card);
       await wait(1400);
@@ -702,7 +799,7 @@ watch(takeCfg, (cfg) => scene?.setTake(cfg));
 watch(() => Boolean(myTake.value && view.value?.canPeek && !pending.value), (on) => scene?.setPeekable(on));
 // มือถือ: ถึงขั้นหยิบการ์ดของเรา → หุบป๊อปอัปการ์ดอัตโนมัติ (ต้องเห็นโต๊ะ) · ขั้นสร้างสิทธิ → กางการ์ดสิทธิในมือ
 watch(myTake, (v) => { if (v && phoneUI.value) { clearTimeout(panelTimer); panel.value = null; } });
-watch(myBuild, (v) => { if (v && handRights.value.length) openPanel('rights'); });
+// มือถือ: ป๊อปอัปการ์ดเปิดเฉพาะตอนผู้เล่นกดปุ่มเอง (ไม่เด้งเอง → ไม่ต้องกดปิดซ้ำหลายรอบ)
 
 // มีป๊อปอัปเปิดอยู่ → ปิดการแตะบนกระดาน (กันแตะทะลุ)
 const overlayOpen = computed(() => Boolean(
@@ -712,7 +809,14 @@ const overlayOpen = computed(() => Boolean(
 watch(overlayOpen, (v) => { if (scene) scene.input.enabled = !v; });
 
 const showTimer = computed(() => Boolean(myTimer.value && isMyTurn.value && !threatUI.value));
+// ไอคอนปุ่มมุมขวาล่าง (มือถือ) จากรูปของทีม assets/ui/icon-*.webp — ไม่มีรูป → ใช้ไอคอน SVG เดิม
+const PBTN_ICON = { built: uiImg('icon-built'), rights: uiImg('icon-rights'), acts: uiImg('icon-hand') };
 const TITLES = { acts: 'การ์ดในมือ', rights: 'การ์ดสิทธิในมือ', built: 'สิทธิที่สร้างแล้ว' };
+const sortedActs = computed(() => {
+  const SYM = { INF: 0, PAR: 1, JUS: 2 };
+  return handActs.value.slice().sort((a, b) => (SYM[cards[a].symbol] - SYM[cards[b].symbol]) || (cards[a].number - cards[b].number));
+});
+const peekList = (k) => (k === 'acts' ? sortedActs.value : handRights.value);
 const cardTotal = computed(() => (view.value?.hand.length || 0) + myBuilt.value.length);
 const canBuildNow = computed(() => Boolean(myBuild.value && view.value?.buildOptions?.length));
 const panelCount = (k) => (k === 'acts' ? handActs.value.length : k === 'rights' ? handRights.value.length : myBuilt.value.length);
@@ -724,7 +828,7 @@ function selectPlayer(id) {
 </script>
 
 <template>
-  <main class="game-page" :class="[{ quake }, phoneUI ? 'is-phone' : 'is-desk']">
+  <main class="game-page" :class="[{ quake, 'env-out': envShift || endShow, 'fly-top': flyTop }, phoneUI ? 'is-phone' : 'is-desk']">
     <div ref="stageEl" class="stage" />
 
     <!-- ป้ายชื่อ/จำนวนของกองบนโต๊ะ (HTML → คมทุกจอ มุมโค้ง) -->
@@ -750,15 +854,12 @@ function selectPlayer(id) {
     <div v-if="status !== 'error'" ref="layoutEl" class="layout" :style="layoutStyle">
       <!-- ซ้าย: ช่วง · ตาของ · (คอม: เวลา + แจ้งเตือน) · ผู้เล่นในห้อง -->
       <aside class="col left">
-        <div v-if="view && phoneUI" class="phase-mini" :class="`p${view.phase}`" title="ช่วงของเกม">
-          <small>ช่วง</small><b>{{ view.phase }}</b>
-        </div>
-        <div v-if="view && !phoneUI" class="phase-pill" :class="`p${view.phase}`" title="ช่วงของเกม">
+        <div v-if="view" class="phase-pill" :class="`p${view.phase}`" title="ช่วงของเกม">
           <b>ช่วงที่ {{ view.phase }}</b>
           <span class="dots"><i v-for="n in 3" :key="n" :class="{ on: n <= view.phase }" /></span>
           <small>กองจั่ว {{ view.deckLeft }}</small>
         </div>
-        <div v-if="view && !phoneUI" class="turn-pill" :class="{ mine: isMyTurn, threat: view.stage === 'coins' }">
+        <div v-if="view" class="turn-pill" :class="{ mine: isMyTurn, threat: view.stage === 'coins' }">
           <PlayerAvatar
             v-if="turnPlayer"
             :is-ai="turnPlayer.isAI"
@@ -792,7 +893,6 @@ function selectPlayer(id) {
           :my-avatar="auth.avatar"
           :cards="cards"
           :intent="intentMsg"
-          :compact="phoneUI"
           @select="selectPlayer"
         />
       </aside>
@@ -816,17 +916,16 @@ function selectPlayer(id) {
           </button>
         </div>
 
-        <!-- มือถือ: เวลา + แจ้งเตือน -->
-        <div v-if="phoneUI && view" class="status">
-          <div class="timer-box glass">
-            <TimerRing v-if="showTimer" :deadline="myTimer.deadline" :duration="myTimer.duration" :size="54" big />
-            <div v-else class="idle"><b>{{ isMyTurn ? '...' : 'รอ' }}</b></div>
+        <!-- มือถือ: การ์ดสถานะเดียว = เวลา + ตาของใคร + แจ้งเตือนล่าสุด -->
+        <div v-if="phoneUI && view" class="pstat glass" :class="{ mine: isMyTurn && view.stage !== 'ended' }" aria-live="polite">
+          <div class="ptimer">
+            <TimerRing v-if="showTimer" :deadline="myTimer.deadline" :duration="myTimer.duration" :size="38" big />
+            <span v-else class="pidle"><span class="dotty" /></span>
           </div>
-          <div class="notify glass" aria-live="polite">
-            <p class="turnline" :class="{ mine: isMyTurn }">{{ turnText }}</p>
-            <p v-if="!notes.length" class="none">การแจ้งเตือน</p>
-            <TransitionGroup name="note">
-              <p v-for="n in notes.slice(0, 1)" :key="n.id" :class="n.type">{{ n.text }}</p>
+          <div class="ptext">
+            <b class="pturn">{{ view.stage === 'ended' ? 'จบเกม' : isMyTurn ? 'ตาของคุณ' : `รอ ${nameOf(view.current)}` }}</b>
+            <TransitionGroup name="note" tag="span" class="pnote">
+              <span v-for="n in notes.slice(0, 1)" :key="n.id" :class="n.type">{{ n.text }}</span>
             </TransitionGroup>
           </div>
         </div>
@@ -852,56 +951,89 @@ function selectPlayer(id) {
           </div>
         </section>
 
-        <!-- มือถือ: ปุ่ม + ปุ่มลัดเปิดการ์ด -->
+        <!-- มือถือ: ปุ่มการกระทำ · การ์ดในมือ · ปุ่มเปิดการ์ด 3 หมวด (ตามไวร์เฟรม) -->
         <template v-if="phoneUI && view">
-          <div class="actions glass">
+          <!-- สิ่งที่ต้องทำ (แสดงเฉพาะตอนถึงตาเรา · ไม่มีอะไรให้ทำ = ไม่แสดงกรอบว่าง) -->
+          <div v-if="myTake || myBuild || myPeek" class="pact">
             <template v-if="myTake">
-              <button v-if="freeMode" type="button" class="btn act" :disabled="selection.length !== 3 || pending" @click="takeSelected">หยิบ {{ selection.length }}/3</button>
-              <span v-else-if="!view.canPeek" class="hint">แตะลูกศร ▸ เพื่อหยิบ</span>
-              <button v-if="view.canPeek" type="button" class="btn btn--sun act peek-btn" :disabled="pending" @click="peek">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3" /></svg>
-                ดูบนสุด
-              </button>
+              <p v-if="!freeMode" class="phint">
+                แตะ <i class="arw"><svg viewBox="0 0 24 24"><path d="M10 7l5 5-5 5" /></svg></i>
+                หรือ <i class="arw"><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" /></svg></i>
+                บนโต๊ะเพื่อหยิบ
+              </p>
+              <div v-if="freeMode || view.canPeek" class="act-row">
+                <button v-if="freeMode" type="button" class="btn act" :disabled="selection.length !== 3 || pending" @click="takeSelected">หยิบการ์ด {{ selection.length }}/3</button>
+                <button v-if="view.canPeek" type="button" class="btn btn--sun act peek-btn" :disabled="pending" @click="peek">ดูการ์ดบนสุด</button>
+              </div>
             </template>
-            <template v-else-if="myBuild">
-              <button type="button" class="btn act" @click="play('click'); modal.build = true">สร้าง ({{ view.buildOptions.length }})</button>
-              <button type="button" class="btn btn--light act" :disabled="pending" @click="endBuild">จบตา</button>
-            </template>
-            <span v-else-if="myPeek" class="hint">ตัดสินใจการ์ด</span>
-            <span v-else-if="view.stage !== 'ended' && !isMyTurn" class="hint wait"><span class="dotty" /> รอ {{ nameOf(view.current) }}</span>
-          </div>
-          <!-- ปุ่มเปิดลิ้นชักการ์ดของเรา -->
-          <button type="button" class="cards-btn" :class="{ on: panel, glow: canBuildNow }" data-anchor="btn:cards" @click="toggleDrawer">
-            <span class="fan" aria-hidden="true"><i /><i /><i /></span>
-            <span class="lbl">การ์ดของฉัน</span>
-            <span class="cnt">{{ cardTotal }}</span>
-          </button>
-        </template>
-      </aside>
-
-      <!-- มือถือ: ลิ้นชักการ์ดเลื่อนออกจากขวา (แท็บ 3 หมวด) · กางเองอัตโนมัติเมื่อควรดู -->
-      <Transition name="drawer">
-        <div v-if="phoneUI && panel && view" class="drawer-wrap" @click.self="togglePanel(panel)">
-          <section class="drawer">
-            <header class="dh">
-              <nav class="tabs">
-                <button v-for="k in ['acts', 'rights', 'built']" :key="k" type="button" :class="{ on: panel === k }" @click="play('click'); panel = k">
-                  {{ TITLES[k] }} <b>{{ panelCount(k) }}</b>
-                </button>
-              </nav>
-              <button type="button" class="dx" aria-label="ปิด" @click="togglePanel(panel)">
-                <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" /></svg>
-              </button>
-            </header>
-            <div class="dbody">
-              <MyCards single :sections="[panel]" :hand="view.hand" :built="myBuilt" @card="(id) => { play('click'); modal.card = id; }" />
-            </div>
-            <div v-if="myBuild" class="dfoot">
+            <div v-else-if="myBuild" class="act-row">
               <button type="button" class="btn act" @click="play('click'); modal.build = true">สร้างสิทธิ ({{ view.buildOptions.length }})</button>
               <button type="button" class="btn btn--light act" :disabled="pending" @click="endBuild">จบตา</button>
             </div>
-          </section>
-        </div>
+            <p v-else class="phint">ตัดสินใจการ์ดบนสุด</p>
+          </div>
+
+          <!-- การ์ดของฉัน: กรอบเดียว 2 แถว (การ์ดในมือ · การ์ดสิทธิในมือ) · แตะแถวไหน → เปิดป๊อปอัปหมวดนั้น -->
+          <div class="pmine glass">
+            <button
+              v-for="k in ['acts', 'rights']"
+              :key="k"
+              type="button"
+              class="prow"
+              :class="[k, { glow: k === 'rights' && canBuildNow }]"
+              :data-anchor="k === 'acts' ? 'btn:cards' : null"
+              :aria-label="TITLES[k]"
+              @click="togglePanel(k)"
+            >
+              <span class="ptag">{{ TITLES[k] }} <b>{{ panelCount(k) }}</b></span>
+              <span v-if="peekList(k).length" class="hp-row">
+                <span v-for="id in peekList(k)" :key="id" class="hp-card" :class="{ flying: flying.includes(id) }" :data-card="id"><img :src="artUrl(id)" alt="" draggable="false" /></span>
+              </span>
+              <span v-else class="hp-empty">{{ k === 'acts' ? 'ยังไม่มีการ์ด' : 'ยังไม่มีการ์ดสิทธิ' }}</span>
+            </button>
+          </div>
+
+          <!-- ปุ่มเปิดการ์ด 3 หมวด: สิทธิที่สร้างแล้ว · การ์ดสิทธิในมือ · การ์ดในมือ -->
+          <nav class="pbtns" aria-label="การ์ดของฉัน">
+            <button
+              v-for="k in ['built', 'rights', 'acts']"
+              :key="k"
+              type="button"
+              class="pbtn"
+              :class="[k, { on: panel === k, glow: k === 'rights' && canBuildNow, bump: k === 'built' && bumpBuilt }]"
+              :data-anchor="k === 'built' ? 'btn:built' : null"
+              :aria-label="TITLES[k]"
+              :title="TITLES[k]"
+              @click="togglePanel(k)"
+            >
+              <img v-if="PBTN_ICON[k]" class="pic" :src="PBTN_ICON[k]" alt="" draggable="false" />
+              <!-- สำรอง: ไอคอนทึบสีขาวบนวงกลมสี -->
+              <svg v-else-if="k === 'built'" viewBox="0 0 24 24"><path class="w" d="M12 2.5 4.5 5.8v5.4c0 4.6 3.2 8.6 7.5 9.8 4.3-1.2 7.5-5.2 7.5-9.8V5.8Z" /><path class="d" d="M12 7.4l1.35 2.75 3 .43-2.18 2.12.52 3L12 14.3l-2.69 1.4.52-3-2.18-2.12 3-.43Z" /></svg>
+              <svg v-else-if="k === 'rights'" viewBox="0 0 24 24"><rect class="w" x="5.5" y="2.8" width="13" height="18.4" rx="2.8" /><path class="d" d="M12 16.6s-4.2-2.5-4.2-5.4a2.3 2.3 0 0 1 4.2-1.3 2.3 2.3 0 0 1 4.2 1.3c0 2.9-4.2 5.4-4.2 5.4Z" /></svg>
+              <svg v-else viewBox="0 0 24 24"><rect class="w2" x="2.8" y="6.2" width="10.2" height="14" rx="2.3" transform="rotate(-14 8 13.2)" /><rect class="w" x="10.6" y="4.4" width="10.2" height="14" rx="2.3" transform="rotate(9 15.7 11.4)" /><circle class="d" cx="15.6" cy="11.4" r="2.3" /></svg>
+              <b class="pc">{{ panelCount(k) }}</b>
+            </button>
+          </nav>
+        </template>
+      </aside>
+
+      <!-- มือถือ: ป๊อปอัปการ์ดแต่ละหมวด (ลอยเหนือปุ่ม 3 ปุ่มมุมขวาล่าง) · กางเองอัตโนมัติเมื่อควรดู -->
+      <Transition name="pop">
+        <section v-if="phoneUI && panel && view" ref="popEl" class="cards-pop" :class="`k-${panel}`">
+          <header class="ph">
+            <h4>{{ TITLES[panel] }} <span>({{ panelCount(panel) }})</span></h4>
+            <button type="button" class="dx" aria-label="ปิด" @click.stop="play('click'); closePanel()">
+              <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" /></svg>
+            </button>
+          </header>
+          <div class="pbody">
+            <MyCards single :sections="[panel]" :hand="view.hand" :built="myBuilt" :hidden="flying" @card="(id) => { play('click'); modal.card = id; }" />
+          </div>
+          <div v-if="myBuild" class="pfoot">
+            <button type="button" class="btn act" @click="play('click'); modal.build = true">สร้างสิทธิ ({{ view.buildOptions.length }})</button>
+            <button type="button" class="btn btn--light act" :disabled="pending" @click="endBuild">จบตา</button>
+          </div>
+        </section>
       </Transition>
     </div>
 
@@ -916,6 +1048,8 @@ function selectPlayer(id) {
     </Transition>
 
     <!-- ภาพประกาศช่วง (ช่วงที่ 1 / 2 / 3 / จบเกม) -->
+    <EnvShift :shift="envShift" />
+    <EndShift :show="endShow" />
     <PhaseSplash :splash="splash" />
 
     <!-- ภัยคุกคาม -->
@@ -997,7 +1131,7 @@ function selectPlayer(id) {
       </div>
     </BaseModal>
 
-    <BaseModal :open="Boolean(modal.card)" title="รายละเอียดการ์ด" width="40rem" @close="modal.card = null">
+    <BaseModal :open="Boolean(modal.card)" title="รายละเอียดการ์ด" width="30rem" @close="modal.card = null">
       <CardInfo v-if="modal.card" :id="modal.card" />
     </BaseModal>
 
@@ -1089,21 +1223,30 @@ function selectPlayer(id) {
 
 <style scoped>
 .game-page { position: fixed; inset: 0; z-index: 1; overflow: hidden; }
+/* เปลี่ยนช่วง (2/3): UI ทุกอย่างหายไป เหลือแต่ฉาก — แล้วค่อย ๆ กลับมา */
+.stage, .layout, .pile-lbl { transition: opacity 0.6s ease, transform 0.6s ease, filter 0.6s ease; }
+.env-out .stage, .env-out .layout, .env-out .pile-lbl { opacity: 0; transform: scale(0.96); filter: blur(3px); pointer-events: none !important; }
+.env-out :deep(.gear) { opacity: 0; pointer-events: none; }
 .stage { position: absolute; inset: 0; }
+/* การ์ดบิน (AI/เรา หยิบ-ทิ้ง-สร้างสิทธิ): canvas ขึ้นเหนือแผง (z 10) แต่ใต้ป้ายกอง (z 12) · ระหว่างนั้นคลิกทะลุไปที่แผงได้ */
+.fly-top .stage { z-index: 11; pointer-events: none; }
 .stage :deep(canvas) { display: block; }
 
 /* =========================================================
    เลย์เอาต์หลัก: 3 คอลัมน์ (ซ้าย | โต๊ะ | ขวา) — แผงโปร่งแสงโทนพาสเทล เห็นพื้นหลังทะลุ
    ========================================================= */
 .game-page {
+  /* ฟันเฟืองตั้งค่า = ขนาดเท่าปุ่มเครื่องมือ อยู่แถวเดียวกัน (แถวเครื่องมือสูง 42px ปุ่ม 40px) */
+  --gear-size: 40px; --gear-top: calc(var(--safe-t) + 11px); --gear-right: calc(var(--safe-r) + 10px);
   --lw: clamp(210px, 17vw, 280px);   /* คอลัมน์ซ้าย */
-  --rw: clamp(300px, 27vw, 440px);   /* คอลัมน์ขวา (ขั้นต่ำ) */
+  --rw: clamp(250px, 22vw, 440px);   /* คอลัมน์ขวา (ขั้นต่ำ · fitBoard คำนวณค่าเดียวกันใน JS) */
   --rwmax: 640px;
   --gap: 12px;
   --ink: #2f5a3a;
 }
 .game-page.is-phone {
-  --lw: 58px;                       /* แถบรูปผู้เล่น (แคบ → โต๊ะกลางใหญ่ขึ้น) */
+  --gear-size: 32px; --gear-top: calc(var(--safe-t) + 8px); --gear-right: calc(var(--safe-r) + 6px);
+  --lw: clamp(116px, 21vw, 185px);  /* คอลัมน์ซ้าย: ช่วง · ตาของ · ผู้เล่นในห้อง (แบบเดียวกับคอม ย่อขนาด) */
   --rw: clamp(170px, 22vw, 196px);
   --rwmax: 250px;
   --gap: 8px;
@@ -1177,6 +1320,22 @@ function selectPlayer(id) {
 .notify p.error { color: #b8433a; }
 .notify p.old { font-size: 0.76rem; font-weight: 600; opacity: 0.55; }
 .notify p.none { font-weight: 500; color: #8a9a8d; font-size: 0.85rem; text-align: center; }
+/* ข้อความยาว: ตัดไม่ให้ดันกล่องจนผู้เล่นในห้องล้น (ล่าสุด 2 บรรทัด · เก่า 1 บรรทัด) */
+.notify p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.notify p.old { -webkit-line-clamp: 1; }
+
+/* แท็บเล็ต / จอคอมเตี้ย (สูง 501–899px): ย่อคอลัมน์ซ้ายให้ "ผู้เล่นในห้อง" พอดี ไม่ล้น */
+@media (min-height: 501px) and (max-height: 899px) {
+  .left { gap: 8px; }
+  .phase-pill { padding: 0.32rem 0.8rem; }
+  .phase-pill b { font-size: 1rem; }
+  .turn-pill { padding: 0.2rem 0.7rem 0.2rem 0.3rem; }
+  .turn-pill .tt { font-size: 0.86rem; }
+  .left .timer-box { padding: 0.35rem; }
+  .left .notify { min-height: 3.2rem; padding: 0.45rem 0.7rem; }
+  .left .notify p { font-size: 0.84rem; }
+  .left .notify p.old { font-size: 0.7rem; }
+}
 .note-enter-active { transition: transform 0.35s var(--ease-back), opacity 0.25s; }
 .note-enter-from { transform: translateY(-8px); opacity: 0; }
 .note-leave-active { display: none; }
@@ -1185,7 +1344,7 @@ function selectPlayer(id) {
 .players-box { flex: 1; min-height: 0; }
 
 /* ---- เครื่องมือ (ขวาบน · เว้นที่ให้ปุ่มฟันเฟือง) ---- */
-.tools { display: flex; justify-content: flex-end; align-items: center; gap: 0.4rem; min-height: 42px; padding-right: 50px; flex: none; }
+.tools { display: flex; justify-content: flex-end; align-items: center; gap: 0.4rem; min-height: 42px; padding-right: calc(var(--gear-size) + 0.4rem); flex: none; }
 .tool, .abil {
   height: 40px; min-width: 40px; border-radius: 999px; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 3px; padding: 0 7px;
@@ -1193,8 +1352,8 @@ function selectPlayer(id) {
   box-shadow: 0 3px 10px rgba(50, 90, 70, 0.14);
 }
 .tool svg { width: 21px; height: 21px; fill: none; stroke: var(--leaf); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.ab { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #eef0ec; }
-.ab svg { width: 17px; height: 17px; fill: none; stroke: #b3bab0; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ab { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #eef0ec; }
+.ab svg { width: 19px; height: 19px; fill: none; stroke: #b3bab0; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ab.on { background: var(--c); box-shadow: 0 0 0 2px #fff, 0 0 8px 2px color-mix(in srgb, var(--c) 60%, transparent); }
 .ab.on svg { stroke: var(--ink); }
 .ab.big { width: 2.6rem; height: 2.6rem; flex: none; }
@@ -1208,7 +1367,7 @@ function selectPlayer(id) {
 .actions { flex: none; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.3rem; }
 .act { min-height: 40px; padding: 0 1rem; font-size: 0.95rem; }
 .hint { font-size: 0.85rem; font-weight: 700; color: var(--ink); text-align: center; min-width: 0; }
-.peek-btn { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; animation: peek-pulse 1.3s ease-in-out infinite; }
+.peek-btn { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; } /* ไม่มีเงากะพริบ — ปุ่มนิ่ง ๆ */
 .peek-btn svg { width: 1.2em; height: 1.2em; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 @keyframes peek-pulse { 50% { box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.3), 0 0.25rem 0 var(--btn-edge); } }
 .hint.wait { display: inline-flex; align-items: center; gap: 0.4rem; color: #6d7f71; font-weight: 600; }
@@ -1228,89 +1387,156 @@ function selectPlayer(id) {
 .pl.peek { top: 55%; background: #ffcf6e; color: #6b4a00; border-color: #fff; animation: peek-bob 1.2s ease-in-out infinite; }
 @keyframes peek-bob { 50% { transform: translate(-50%, -50%) scale(1.1); } }
 
-/* ---- มือถือ: ปุ่มการ์ดของฉัน + ลิ้นชัก ---- */
-.phase-mini {
-  --a: #d9f5e1; --b: #b7e9c6; --t: #24603a;
-  display: flex; flex-direction: column; align-items: center; line-height: 1; padding: 0.3rem 0 0.35rem; border-radius: 14px;
-  background: linear-gradient(180deg, var(--a), var(--b)); color: var(--t);
-  border: 2px solid rgba(255, 255, 255, 0.9); box-shadow: 0 3px 10px rgba(50, 90, 70, 0.14);
+/* ---- มือถือ: ปุ่มการกระทำ · ปุ่มเปิดการ์ด 3 หมวด · ป๊อปอัปการ์ด ---- */
+.hint.arrows { margin: 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.2rem; line-height: 1.5; }
+.arw {
+  width: 1.25rem; height: 1.25rem; border-radius: 50%; display: inline-grid; place-items: center; flex: none;
+  background: #fff; border: 1.5px solid #3a7d2c; color: #3a7d2c;
 }
-.phase-mini.p2 { --a: #fff0d9; --b: #ffd9a8; --t: #8a4f0e; }
-.phase-mini.p3 { --a: #ffe3df; --b: #ffc2b8; --t: #9a2f25; }
-.phase-mini small { font-size: 0.6rem; font-weight: 700; }
-.phase-mini b { font-family: var(--font-head); font-size: 1.35rem; }
-.turnline { font-size: 0.68rem !important; font-weight: 700; color: #3d5a45 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.turnline.mine { color: #8a5a00 !important; }
-.cards-btn {
-  margin-top: auto; position: relative; display: flex; align-items: center; gap: 0.5rem; cursor: pointer;
-  padding: 0.45rem 0.8rem 0.45rem 0.55rem; border-radius: 16px;
-  background: rgba(255, 255, 255, 0.9); border: 2px solid #fff; color: #2f5a3a;
-  box-shadow: 0 4px 12px rgba(50, 90, 70, 0.18); font-weight: 700; font-size: 0.85rem;
-  transition: transform 0.15s, background 0.2s;
+.arw svg { width: 0.85rem; height: 0.85rem; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.act-row { display: flex; justify-content: center; gap: 0.35rem; flex-wrap: wrap; width: 100%; }
+.is-phone .actions { flex-direction: column; gap: 0.3rem; }
+
+/* ---- มือถือ: คอลัมน์ขวา (ออกแบบใหม่) ---- */
+/* การ์ดสถานะ: วงเวลา | ตาของใคร + แจ้งเตือนล่าสุด */
+.pstat { flex: none; display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.6rem 0.35rem 0.35rem; border-radius: 16px; min-height: 3.1rem; }
+.pstat.mine { background: linear-gradient(180deg, rgba(255, 248, 214, 0.92), rgba(255, 236, 170, 0.88)); border-color: #fff; box-shadow: 0 0 0 2px #f6cf6a, 0 6px 18px rgba(200, 150, 40, 0.18); }
+.ptimer { flex: none; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; }
+.pidle { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.75); box-shadow: inset 0 0 0 3px rgba(47, 107, 44, 0.12); }
+.ptext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.05rem; }
+.pturn { font-family: var(--font-head); font-size: 0.8rem; font-weight: 700; color: #2f5a3a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; }
+.pstat.mine .pturn { color: #8a5a00; }
+.pnote { display: block; min-height: 1em; }
+.pnote span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; padding-left: 2px; font-size: 0.64rem; font-weight: 600; line-height: 1.35; color: #4f6857; }
+.pnote span.ok { color: #2c7a44; }
+.pnote span.error { color: #b8433a; }
+
+/* สิ่งที่ต้องทำ: แถบบาง ๆ ไม่มีกรอบหนา */
+.pact { flex: none; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+.phint { margin: 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.18rem; font-size: 0.66rem; font-weight: 700; color: #2f5a3a; padding: 0.15rem 0.6rem; border-radius: 999px; background: rgba(255, 255, 255, 0.82); }
+.phint .arw { width: 1.05rem; height: 1.05rem; }
+.pact .act { min-height: 30px; font-size: 0.76rem; }
+
+/* การ์ดของฉัน: กรอบเดียว 2 แถว */
+.pmine { flex: 1 1 0; min-height: 0; max-height: 13rem; display: flex; flex-direction: column; padding: 0.3rem; border-radius: 16px; gap: 0.25rem; }
+.prow {
+  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 0.15rem;
+  padding: 0.25rem 0.35rem 0.3rem; border-radius: 12px; border: 0; cursor: pointer; font: inherit; text-align: left;
+  background: rgba(255, 255, 255, 0.5); transition: background 0.15s;
 }
-.cards-btn.on { background: #4f7f5c; color: #fff; }
-.cards-btn.glow { box-shadow: 0 0 0 3px rgba(108, 199, 136, 0.55), 0 4px 12px rgba(50, 90, 70, 0.18); animation: soft-pulse 1.6s ease-in-out infinite; }
-.cards-btn:active { transform: scale(0.96); }
-.fan { position: relative; width: 26px; height: 24px; flex: none; }
-.fan i { position: absolute; bottom: 0; left: 8px; width: 13px; height: 19px; border-radius: 3px; background: #b7e0c3; border: 1.5px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); transform-origin: 50% 100%; }
-.fan i:nth-child(1) { transform: rotate(-22deg); background: #f7b6c8; }
-.fan i:nth-child(2) { background: #a9cdef; }
-.fan i:nth-child(3) { transform: rotate(22deg); background: #f6d88a; }
-.cards-btn .lbl { flex: 1; text-align: left; }
-.cards-btn .cnt {
-  min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; display: grid; place-items: center;
-  font-size: 0.72rem; color: #fff; background: #e39a5a; border: 2px solid #fff;
+.prow:active { background: rgba(255, 255, 255, 0.85); }
+.prow.glow { box-shadow: inset 0 0 0 2px #f09bb5; background: rgba(255, 240, 245, 0.75); }
+.ptag { flex: none; display: flex; align-items: center; gap: 0.3rem; font-size: 0.62rem; font-weight: 700; color: #4f6f57; padding-left: 2px; }
+.ptag b { min-width: 1.1rem; padding: 0 0.3rem; border-radius: 999px; text-align: center; font-size: 0.6rem; color: #fff; background: #7fb5e3; }
+.prow.rights .ptag b { background: #ea7fa2; }
+
+.pbtns { flex: none; display: flex; justify-content: flex-end; gap: 0.55rem; margin-top: auto; padding: 0 6px 6px 0; }
+/* ปุ่มกลมแบบเกม: วงกลมสีพาสเทลไล่สี ขอบขาวหนา เงานูนด้านล่าง ไอคอนทึบสีขาว
+   สิทธิที่สร้างแล้ว = เหลือง · การ์ดสิทธิในมือ = ชมพู · การ์ดในมือ = ฟ้า (สีเดียวกับ Navbar) */
+.pbtn {
+  --c: #5aa0dd; --c-light: #a9d4f7; --c-deep: #2f6fa8;
+  position: relative; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; padding: 0; margin: 0;
+  display: flex; align-items: center; justify-content: center; line-height: 0;
+  background: radial-gradient(circle at 35% 28%, #ffffff 0 8%, transparent 9%), linear-gradient(180deg, var(--c-light) 0%, var(--c) 70%);
+  border: 3px solid #ffffff;
+  box-shadow: 0 4px 0 var(--c-deep), 0 7px 12px rgba(30, 60, 45, 0.25);
+  transition: transform 0.15s var(--ease-back), box-shadow 0.15s;
 }
-.drawer-wrap {
-  position: fixed; inset: 0; z-index: 70; pointer-events: auto;
-  background: linear-gradient(90deg, rgba(30, 50, 40, 0.05), rgba(30, 50, 40, 0.28));
-  display: flex; justify-content: flex-end;
-  padding: calc(var(--safe-t) + 6px) calc(var(--safe-r) + 6px) calc(var(--safe-b) + 6px) 0;
+.pbtn.built { --c: #efb834; --c-light: #ffe08a; --c-deep: #b8841a; --c-soft: #fff6dc; }
+.pbtn.rights { --c: #ea7fa2; --c-light: #ffc2d4; --c-deep: #b24f73; --c-soft: #fde8ef; }
+.pbtn.acts { --c-soft: #e6f2fd; }
+.pbtn svg { display: block; flex: none; width: 20px; height: 20px; filter: drop-shadow(0 1.5px 0 var(--c-deep)); }
+/* มีรูปไอคอนของทีม: พื้นปุ่มขาวนวล ขอบสีตามหมวด · รูปใหญ่เต็มวง ล้นขอบนิด ๆ ให้ดูน่ารัก */
+.pbtn:has(.pic) {
+  background: radial-gradient(circle at 50% 40%, #ffffff 0%, var(--c-soft, #f3f8ff) 100%);
+  box-shadow: 0 0 0 2.5px var(--c), 0 4px 0 2.5px var(--c-deep), 0 8px 14px rgba(30, 60, 45, 0.25);
 }
-.drawer {
-  width: min(66vw, 560px); height: 100%; display: flex; flex-direction: column; overflow: hidden;
-  background: rgba(255, 255, 255, 0.94); border: 2px solid #fff; border-radius: 20px;
-  box-shadow: -8px 0 30px rgba(30, 60, 45, 0.25);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+.pbtn .pic { display: block; width: 104%; height: 104%; max-width: none; object-fit: contain; pointer-events: none; filter: drop-shadow(0 1.5px 1px rgba(30, 50, 80, 0.25)); }
+.pbtn.on:has(.pic) { box-shadow: 0 0 0 2.5px var(--c), 0 1px 0 2.5px var(--c-deep), 0 0 0 7px color-mix(in srgb, var(--c) 40%, transparent); }
+.pbtn.glow:has(.pic) { box-shadow: 0 0 0 2.5px var(--c), 0 4px 0 2.5px var(--c-deep), 0 0 0 7px color-mix(in srgb, var(--c-light) 70%, transparent); }
+.pbtn svg .w { fill: #ffffff; }
+.pbtn svg .w2 { fill: rgba(255, 255, 255, 0.72); }
+.pbtn svg .d { fill: var(--c); }
+.pbtn:hover { transform: translateY(-2px); }
+.pbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--c-deep), 0 3px 6px rgba(30, 60, 45, 0.2); }
+/* ป๊อปอัปของปุ่มนี้เปิดอยู่: ยุบลง + วงแหวนสีขาวรอบ */
+.pbtn.on { transform: translateY(3px); box-shadow: 0 1px 0 var(--c-deep), 0 0 0 4px rgba(255, 255, 255, 0.85), 0 0 0 7px color-mix(in srgb, var(--c) 45%, transparent); }
+.pbtn.glow { box-shadow: 0 4px 0 var(--c-deep), 0 0 0 4px color-mix(in srgb, var(--c-light) 75%, transparent); } /* สร้างสิทธิได้: วงแหวนนิ่ง (ไม่กะพริบ) */
+@keyframes pbtn-glow { 50% { box-shadow: 0 4px 0 var(--c-deep), 0 0 0 6px color-mix(in srgb, var(--c-light) 70%, transparent), 0 7px 12px rgba(30, 60, 45, 0.25); transform: translateY(-2px) rotate(-4deg); } }
+.pbtn.bump { animation: pbtn-bump 0.6s var(--ease-back); }
+@keyframes pbtn-bump { 0% { transform: scale(1); } 35% { transform: scale(1.3) rotate(-8deg); box-shadow: 0 4px 0 var(--c-deep), 0 0 0 6px rgba(255, 214, 102, 0.6); } 100% { transform: scale(1); } }
+.hp-card.flying { visibility: hidden; }
+.pc {
+  position: absolute; right: -6px; top: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 700; font-style: normal; line-height: 1; color: #fff;
+  background: linear-gradient(180deg, #ff8a7a, #e0574b); border: 2px solid #fff; box-shadow: 0 2px 0 #a93a31;
 }
-.dh { flex: none; display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 3.3rem 0.35rem 0.55rem; /* เว้นขวาให้ปุ่มฟันเฟือง */ border-bottom: 1.5px solid #e6efe4; }
-.tabs { flex: 1; display: flex; gap: 0.3rem; min-width: 0; }
-.tabs button {
-  flex: 1; min-width: 0; padding: 0.35rem 0.3rem; border-radius: 12px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  border: 0; background: #f0f5ee; color: #56655a; font-size: 0.74rem; font-weight: 700;
+
+/* ป๊อปอัปการ์ด: ลอยเหนือปุ่ม 3 ปุ่ม มุมขวาล่าง ทับโต๊ะบางส่วน (ตามไวร์เฟรม) */
+.cards-pop {
+  position: fixed; z-index: 70;
+  pointer-events: auto; /* อยู่ใน .layout ที่ปิด pointer-events → ต้องเปิดคืน ไม่งั้นแตะทะลุไปโดนกล่องการ์ดข้างใต้ */
+  right: calc(var(--safe-r) + 6px);
+  bottom: calc(var(--safe-b) + 6px + 36px + 16px);
+  width: min(56vw, 520px); height: min(60vh, 16rem);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: rgba(255, 255, 255, 0.96); border: 2px solid #fff; border-radius: 18px;
+  box-shadow: 0 12px 32px rgba(30, 60, 45, 0.28);
 }
-.tabs button b { margin-left: 0.15rem; padding: 0 0.35rem; border-radius: 999px; background: #fff; color: #4f7f5c; }
-.tabs button.on { background: #4f7f5c; color: #fff; }
-.tabs button.on b { color: #4f7f5c; }
-.dx { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 0; background: #f0f3ee; color: #56655a; display: grid; place-items: center; cursor: pointer; }
-.dx svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
-.dbody { flex: 1; min-height: 0; padding: 0.5rem 0.6rem 0.6rem; }
-.dbody :deep(h4) { display: none; } /* ชื่อหมวดอยู่ในแท็บแล้ว */
-.dfoot { flex: none; display: flex; justify-content: center; gap: 0.5rem; padding: 0.4rem; border-top: 1.5px solid #e6efe4; }
-.drawer-enter-active, .drawer-leave-active { transition: opacity 0.25s; }
-.drawer-enter-active .drawer { transition: transform 0.35s var(--ease-out); }
-.drawer-leave-active .drawer { transition: transform 0.25s ease-in; }
-.drawer-enter-from, .drawer-leave-to { opacity: 0; }
-.drawer-enter-from .drawer, .drawer-leave-to .drawer { transform: translateX(105%); }
+.ph { flex: none; display: flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.4rem 0.2rem 0.8rem; }
+.ph h4 { flex: 1; margin: 0; font-family: var(--font-head); font-size: 0.9rem; font-weight: 700; color: #2f5a3a; }
+.ph h4 span { color: #6d8a73; font-weight: 600; }
+.dx { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid #e1ebe0; background: #f4f7f2; color: #56655a; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.dx svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+.pbody { flex: 1; min-height: 0; margin: 0 0.55rem 0.55rem; padding: 0.45rem; border-radius: 14px; border: 1.5px solid #e1ebe0; background: #fbfdfa; }
+.pbody :deep(h4) { display: none; } /* ชื่อหมวดอยู่ที่หัวป๊อปอัปแล้ว */
+.pfoot { flex: none; display: flex; justify-content: center; gap: 0.5rem; padding: 0 0.5rem 0.5rem; }
+.pop-enter-active { transition: transform 0.3s var(--ease-back), opacity 0.2s; transform-origin: 90% 100%; }
+.pop-leave-active { transition: transform 0.18s ease-in, opacity 0.18s; transform-origin: 90% 100%; }
+.pop-enter-from, .pop-leave-to { transform: scale(0.85) translateY(10px); opacity: 0; }
 
 /* ---- มือถือ: ขนาดเล็กลง ---- */
 .is-phone .phase-pill { padding: 0.28rem 0.6rem; gap: 0.3rem; }
 .is-phone .phase-pill b { font-size: 0.85rem; }
-.is-phone .phase-pill small { font-size: 0.62rem; }
+.is-phone .phase-pill small { display: none; } /* จำนวนกองจั่วมีป้ายบนโต๊ะแล้ว */
+.is-phone .phase-pill { justify-content: center; }
 .is-phone .dots i { width: 5px; height: 5px; }
 .is-phone .turn-pill { padding: 0.18rem 0.55rem 0.18rem 0.2rem; gap: 0.3rem; }
 .is-phone .turn-pill .tt { font-size: 0.72rem; }
-.is-phone .tools { min-height: 36px; padding-right: 46px; gap: 0.25rem; }
+.is-phone .tools { min-height: 36px; padding-right: calc(var(--gear-size) + 0.25rem); gap: 0.25rem; }
 .is-phone .tool, .is-phone .abil { height: 32px; min-width: 32px; padding: 0 4px; gap: 2px; }
 .is-phone .tool svg { width: 17px; height: 17px; }
-.is-phone .ab { width: 19px; height: 19px; }
-.is-phone .ab svg { width: 13px; height: 13px; }
-.is-phone .timer-box { padding: 0.3rem; border-radius: 50%; }
-.is-phone .idle { width: 54px; height: 54px; }
-.is-phone .idle b { font-size: 1rem; }
-.is-phone .notify { min-height: 0; padding: 0.35rem 0.5rem; border-radius: 14px; }
+.is-phone .ab { width: 24px; height: 24px; }
+.is-phone .ab svg { width: 15px; height: 15px; }
+.is-phone .timer-box { padding: 0.2rem; border-radius: 50%; }
+.is-phone .idle { width: 42px; height: 42px; box-shadow: inset 0 0 0 4px rgba(47, 107, 44, 0.12); }
+.is-phone .idle b { font-size: 0.82rem; }
+/* มือถือ: ช่องโต๊ะยืดเกือบชิดขอบจอบน/ล่าง → การ์ดกองกลางใหญ่ขึ้น (ส่วนอื่นยังเว้นขอบตามเดิม) */
+.is-phone .board-slot { margin: calc(2px - var(--safe-t) - 6px) 0 calc(1px - var(--safe-b) - 6px); }
+
+/* มือถือ: ตัวอย่างการ์ดในมือ */
+.hand-peek {
+  flex: 1 1 0; min-height: 3rem; max-height: 6.5rem; display: flex; flex-direction: column; gap: 0.2rem;
+  padding: 0.3rem 0.45rem 0.45rem; cursor: pointer; text-align: left; color: var(--ink);
+  border-radius: 14px; font: inherit;
+}
+.hand-peek.glow { box-shadow: 0 0 0 3px rgba(108, 199, 136, 0.55), 0 6px 18px rgba(50, 90, 70, 0.12); }
+.hand-peek:active { transform: scale(0.98); }
+.hp-head { flex: none; font-size: 0.66rem; font-weight: 700; color: #4f6f57; }
+.hp-row { flex: 1; min-height: 0; display: flex; justify-content: center; container-type: size; }
+.hp-card { flex: 0 1 calc(100cqh * 0.714); min-width: 0; height: 100%; }
+.hp-card + .hp-card { margin-left: 3px; }
+.hp-card:last-child { flex-shrink: 0; }
+.hp-card img {
+  display: block; height: 100cqh; width: auto; max-width: none; aspect-ratio: 5 / 7;
+  border-radius: 7%/5%; box-shadow: 0 1px 5px rgba(40, 70, 50, 0.3);
+}
+.hp-empty { flex: 1; display: grid; place-items: center; font-size: 0.66rem; color: #8a9a8d; }
+.is-phone .notify { min-height: 0; padding: 0.4rem 0.75rem; border-radius: 14px; }
+.is-phone .notify p { padding-left: 2px; } /* สระ/วรรณยุกต์ที่ยื่นออกซ้าย (เช่น ใ ไ) ไม่ถูกตัด */
 .is-phone .notify p { font-size: 0.66rem; }
 .is-phone .pl { font-size: 0.62rem; padding: 0.1rem 0.45rem; }
+.is-phone .pl.num { top: calc(100% - 9px); } /* ป้ายจำนวนขยับขึ้นมาบนการ์ด → ไม่ทับเส้นกรอบด้านล่าง */
 .is-phone .notify p.old { font-size: 0.6rem; }
 .is-phone .notify p.none { font-size: 0.66rem; }
 .is-phone .actions { min-height: 0; padding: 0.35rem; border-radius: 14px; }

@@ -12,11 +12,13 @@ const GAME_LAYERS = [
   { key: 'game', img: uiImg('bg-game') },
   { key: 'phase2', img: uiImg('bg-phase-2'), tint: 'rgba(255, 140, 30, 0.16)' },
   { key: 'phase3', img: uiImg('bg-phase-3'), tint: 'rgba(210, 40, 30, 0.18)' },
+  { key: 'test', img: uiImg('bg-test') }, // หน้าแบบทดสอบ Pre-test / Post-test
 ];
 const layerOn = (l) => {
   const k = props.plain ? null : sceneBg.key;
   if (!k) return false;
   if (l.key === k) return true;
+  if (l.key === 'test' || k === 'test') return false;
   // ช่วงที่ 2/3 ไม่มีรูป → คงรูปของช่วงก่อนหน้าไว้ (แล้วทับด้วยสี)
   const order = ['game', 'phase2', 'phase3'];
   const want = order.indexOf(k);

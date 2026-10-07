@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.js';
 import sessionRoutes from './routes/sessions.js';
 import { attachSocket } from './socket/index.js';
 import { pool } from './db/pool.js';
+import { migrate } from './db/migrate.js';
 
 const app = express();
 app.set('trust proxy', 1); // อยู่หลัง proxy ของ Railway → rate limit ใช้ IP จริง
@@ -33,3 +34,4 @@ app.use((err, _req, res, _next) => {
 const server = http.createServer(app);
 attachSocket(server, config.clientOrigins);
 server.listen(config.port, () => console.log(`EarthGuard API → http://localhost:${config.port}`));
+if (config.databaseUrl) migrate().catch((e) => console.error('[migrate]', e.message));

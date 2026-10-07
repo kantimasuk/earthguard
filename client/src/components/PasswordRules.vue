@@ -44,7 +44,7 @@ onBeforeUnmount(close);
 <template>
   <span ref="root" class="rules">
     <button type="button" class="q" :class="{ ok: allOk }" :aria-expanded="open" aria-label="เงื่อนไขรหัสผ่าน" @click="toggle">
-      <svg v-if="allOk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10" /></svg>
+      <svg v-if="allOk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5.5 12.5 4 4 9-9.5" /></svg>
       <span v-else>?</span>
     </button>
     <Teleport to="body">
@@ -73,15 +73,28 @@ onBeforeUnmount(close);
 <style scoped>
 .rules { position: relative; display: inline-flex; }
 .q {
-  width: 22px; height: 22px; border-radius: 50%;
+  width: 20px; height: 20px; border-radius: 50%;
   display: grid; place-items: center; padding: 0;
-  border: 1.5px solid var(--sun-dark); background: #fff4d6;
-  color: var(--sun-ink); font-family: var(--font-head); font-size: 13px; font-weight: 700; cursor: pointer;
+  border: 1px solid #f0d58f; background: #fff6dc;
+  color: #9a6b00; font-family: var(--font-head); font-size: 12px; font-weight: 700; line-height: 1; cursor: pointer;
   position: relative;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s var(--ease-back);
 }
-.q::after { content: ''; position: absolute; inset: -9px; } /* ขยายพื้นที่แตะ */
-.q.ok { border-color: var(--leaf-dark); background: var(--leaf-light); color: var(--accent); }
-.q svg { width: 13px; height: 13px; }
+.q::after { content: ''; position: absolute; inset: -10px; } /* ขยายพื้นที่แตะ */
+.q:hover { transform: scale(1.08); }
+/* ครบเงื่อนไข: วงสีเขียวทึบ + เครื่องหมายถูกสีขาว (ขนาดเท่าไอคอนตา ไม่มีขอบหนา) */
+.q.ok {
+  border-color: transparent; background: var(--leaf, #3a7d2c); color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(58, 125, 44, 0.16);
+  animation: ok-pop 0.35s var(--ease-back);
+}
+.q svg { width: 12px; height: 12px; }
+.q.ok svg path { stroke-dasharray: 20; stroke-dashoffset: 20; animation: draw 0.3s 0.1s var(--ease-out) forwards; }
+@keyframes ok-pop { 0% { transform: scale(0.6); } 100% { transform: scale(1); } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .q.ok, .q.ok svg path { animation: none; stroke-dashoffset: 0; }
+}
 .pop {
   position: fixed; z-index: 700; transform: translateY(-100%);
   padding: 0.6rem 0.8rem; font-size: 0.88rem;

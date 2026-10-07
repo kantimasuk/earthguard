@@ -84,6 +84,8 @@ const sparks = Array.from({ length: 28 }, (_, i) => ({
 
 /* ---- แฟลชขาว ---- */
 .flash { position: absolute; inset: 0; background: #fff; opacity: 0; animation: flash 0.55s ease-out both; }
+/* ช่วง 3 / จบเกม: ไม่มีแสงแฟลชขาววาบ (ดูเหมือนฟ้าผ่า) */
+.p3 .flash, .end .flash { display: none; }
 
 /* ---- ลำแสงหมุน ---- */
 .rays {

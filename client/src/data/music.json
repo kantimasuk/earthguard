@@ -1,0 +1,27 @@
+{
+  "menu": {
+    "file": "/audio/music/menu.mp3",
+    "loopStart": 1.0,
+    "loopLength": 36.923084
+  },
+  "p1": {
+    "file": "/audio/music/p1.mp3",
+    "loopStart": 1.0,
+    "loopLength": 32.542381
+  },
+  "p2": {
+    "file": "/audio/music/p2.mp3",
+    "loopStart": 1.0,
+    "loopLength": 35.555556
+  },
+  "p3": {
+    "file": "/audio/music/p3.mp3",
+    "loopStart": 1.0,
+    "loopLength": 40.0
+  },
+  "end": {
+    "file": "/audio/music/end.mp3",
+    "loopStart": 1.0,
+    "loopLength": 42.352948
+  }
+}

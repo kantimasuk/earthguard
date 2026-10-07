@@ -33,7 +33,7 @@ defineProps({ wideForm: { type: Boolean, default: false } });
 .form-panel {
   width: 100%; max-height: 100%;
   overflow-y: auto; overscroll-behavior: contain;
-  padding: clamp(1.1rem, 4vh, 2.2rem) clamp(1.2rem, 3vw, 2.2rem);
+  padding: clamp(1.5rem, 5vh, 2.7rem) clamp(1.3rem, 3vw, 2.4rem);
   border: 0; border-radius: var(--radius-l);
   background: var(--panel);
   box-shadow: 0 1rem 2.5rem rgba(20, 50, 20, 0.25);
@@ -51,17 +51,17 @@ defineProps({ wideForm: { type: Boolean, default: false } });
   .auth.wide-form { --panel-w: 36rem; }
   .brand { display: none; }
   .form-panel {
-    padding: 1.4rem 2.6rem 1.25rem;   /* เว้นขอบในการ์ดให้โปร่ง */
+    padding: 1.65rem 2.6rem 1.5rem;   /* เว้นขอบบน-ล่างในการ์ดให้โปร่ง */
     border-radius: 1.4rem;
     box-shadow: 0 0.6rem 1.6rem rgba(20, 50, 20, 0.25);
   }
 }
 @media (max-height: 440px) {
-  .form-panel { padding: 1.2rem 2.5rem 1.05rem; }
+  .form-panel { padding: 1.4rem 2.5rem 1.25rem; }
 }
 /* จอเตี้ย: ลดความสูงช่องกรอก/ปุ่มในการ์ดลงเล็กน้อย เพื่อเก็บระยะห่างไว้ */
 @media (max-height: 380px) {
-  .form-panel { --control-h: 32px; padding: 1.05rem 2.3rem 0.95rem; }
+  .form-panel { --control-h: 32px; padding: 1.15rem 2.3rem 1.05rem; }
 }
 @media (max-height: 340px) {
   .form-panel { --control-h: 30px; padding: 0.8rem 2.1rem 0.75rem; }

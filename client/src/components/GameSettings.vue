@@ -5,7 +5,10 @@
 // ระหว่างเปิดป๊อปอัป เกมไม่หยุด ตัวจับเวลายังเดินต่อ
 import { ref } from 'vue';
 import BaseModal from './BaseModal.vue';
+import { openModals } from './modalState';
 import { audioSettings, play } from '@/services/sound';
+import { musicSettings } from '@/services/music';
+import { useAppStore } from '@/stores/app';
 
 const props = defineProps({
   showSpeed: { type: Boolean, default: false }, // แสดงสวิตช์ "AI เล่นเร็ว" (เฉพาะหน้าเล่นเกม)
@@ -14,10 +17,17 @@ const props = defineProps({
 });
 const emit = defineEmits(['exit', 'speed']);
 
+const app = useAppStore();
 const open = ref(false);
 const confirm = ref(false);
 const volume = ref(audioSettings.volume);
 const muted = ref(audioSettings.muted);
+const musicOn = ref(musicSettings.on);
+function toggleMusic() {
+  musicSettings.setOn(!musicOn.value);
+  musicOn.value = musicSettings.on;
+  play('tap');
+}
 
 function toggle() { play('click'); open.value = !open.value; }
 function step(d) {
@@ -36,7 +46,7 @@ function doExit() { emit('exit'); }
 </script>
 
 <template>
-  <button type="button" class="gear" :class="{ on: open }" aria-label="ตั้งค่า" @click="toggle">
+  <button type="button" class="gear" :class="{ on: open, away: openModals > 0 }" :tabindex="openModals > 0 ? -1 : 0" aria-label="ตั้งค่า" @click="toggle">
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="3.2" />
       <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
@@ -69,6 +79,14 @@ function doExit() { emit('exit'); }
         </button>
       </div>
 
+      <div class="row">
+        <span class="label">เพลงประกอบ</span>
+        <button type="button" class="switch" :class="{ off: !musicOn }" role="switch" :aria-checked="musicOn" @click="toggleMusic">
+          <svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13 M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z M20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+          {{ musicOn ? 'เปิด' : 'ปิด' }}
+        </button>
+      </div>
+
       <div v-if="props.showSpeed" class="row">
         <span class="label">AI เล่นเร็ว</span>
         <button type="button" class="switch" :class="{ off: !fast }" role="switch" :aria-checked="fast" @click="play('tap'); emit('speed', !fast)">
@@ -77,6 +95,10 @@ function doExit() { emit('exit'); }
         </button>
       </div>
 
+      <button type="button" class="policy" @click="play('click'); app.openPrivacy()">
+        <svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V7Z M10 11.5V10a2 2 0 0 1 4 0v1.5 M9 11.5h6v4H9z" /></svg>
+        นโยบายความเป็นส่วนตัว
+      </button>
       <button type="button" class="btn btn--block exit" @click="askExit">
         <svg viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3 M10 17l5-5-5-5 M15 12H3" /></svg>
         ออกจากเกม
@@ -97,16 +119,23 @@ function doExit() { emit('exit'); }
 
 <style scoped>
 .gear {
+  /* ตำแหน่ง/ขนาดกำหนดจากหน้าที่ใช้ผ่านตัวแปร CSS (--gear-top / --gear-right / --gear-size)
+     → หน้าแบบทดสอบ: แถวเดียวกับวงเวลา ขนาดเท่ากัน · หน้าเกม: แถวเดียวกับปุ่มเครื่องมือ ขนาดเท่ากัน */
+  --s: var(--gear-size, 42px);
   position: fixed; z-index: 60;
-  top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right));
-  width: 42px; height: 42px; border-radius: 50%;
-  display: grid; place-items: center; cursor: pointer;
+  top: var(--gear-top, max(8px, env(safe-area-inset-top)));
+  right: var(--gear-right, max(10px, env(safe-area-inset-right)));
+  width: var(--s); height: var(--s); border-radius: 50%; padding: 0; margin: 0; line-height: 0;
+  /* flex (ไม่ใช้ grid บนปุ่ม) + padding 0 → ไอคอนอยู่กลางวงพอดีบน iOS Safari */
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
   background: #ffffff; border: 2px solid rgba(47, 107, 44, 0.25);
   box-shadow: 0 3px 10px rgba(20, 50, 20, 0.22);
-  transition: transform 0.3s var(--ease-back);
+  transition: transform 0.3s var(--ease-back), opacity 0.2s;
 }
-.gear svg { width: 24px; height: 24px; fill: none; stroke: var(--leaf); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.gear svg { display: block; flex: none; width: calc(var(--s) * 0.56); height: calc(var(--s) * 0.56); fill: none; stroke: var(--leaf); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .gear.on, .gear:active { transform: rotate(60deg); }
+/* มีป๊อปอัปเปิดอยู่ → ซ่อนฟันเฟือง (ไม่ให้ไปอยู่ชิด/ทับปุ่ม X ของป๊อปอัป) */
+.gear.away { opacity: 0; pointer-events: none; }
 
 .rows { display: flex; flex-direction: column; gap: 0.8rem; padding-top: 0.2rem; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
@@ -135,14 +164,16 @@ function doExit() { emit('exit'); }
 .switch.off { background: #e8ebe5; color: var(--text-muted); }
 .switch svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
+.policy {
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.3rem; margin-top: 0.1rem;
+  background: none; border: 0; cursor: pointer; font-family: var(--font-head); font-size: 0.88rem; color: var(--text-muted);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.policy svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .exit { --btn-bg: #fff1ef; --btn-edge: #f2cfc9; --btn-ink: #b8433a; border: 1.5px solid #f2cfc9; margin-top: 0.2rem; }
 .exit svg, .danger svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .warn { color: var(--text); line-height: 1.5; padding: 0.1rem 0 0.9rem; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .danger { --btn-bg: #d9534f; --btn-edge: #a63c39; }
 
-@media (max-height: 500px) {
-  .gear { width: 38px; height: 38px; }
-  .gear svg { width: 21px; height: 21px; }
-}
 </style>

@@ -8,11 +8,13 @@ import ForgotPasswordModal from '@/components/ForgotPasswordModal.vue';
 import { validateEmail } from '@/utils/validation';
 import { loginErrorMessage, googleErrorMessage } from '@/utils/authErrors';
 import { useAuthStore } from '@/stores/auth';
+import { useAppStore } from '@/stores/app';
 import { play } from '@/services/sound';
 
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
+const app = useAppStore();
 
 const form = reactive({ email: '', password: '' });
 const errors = reactive({ email: '', password: '' });
@@ -123,16 +125,17 @@ function openForgot() {
       ยังไม่มีบัญชี?
       <router-link class="link-btn" to="/register" @click="play('click')">สร้างบัญชีผู้เล่นใหม่</router-link>
     </p>
+    <p class="policy"><button type="button" class="link-btn" @click="play('click'); app.openPrivacy()">นโยบายความเป็นส่วนตัว</button></p>
 
     <ForgotPasswordModal :open="forgotOpen" :initial-email="form.email" @close="forgotOpen = false" />
   </AuthLayout>
 </template>
 
 <style scoped>
-.head { text-align: center; margin-bottom: 1.1rem; }
+.head { text-align: center; margin-bottom: 1.6rem; }
 .title { font-size: 2rem; font-weight: 700; color: var(--accent); }
-.sub { margin-top: 0.5rem; font-size: 1.1rem; color: var(--text); }
-.form { display: flex; flex-direction: column; gap: var(--gap); }
+.sub { margin-top: 0.4rem; font-size: 1.1rem; color: var(--text-muted); }
+.form { display: flex; flex-direction: column; gap: 1.05rem; }
 
 .row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .row .link-btn { font-size: 0.98rem; padding: 0.2rem 0; min-height: 0; color: var(--accent); }
@@ -154,29 +157,33 @@ function openForgot() {
 .check-input:checked + .box svg { stroke-dashoffset: 0; }
 .check-input:focus-visible + .box { outline: 2px solid var(--sky-dark); outline-offset: 2px; }
 
-.actions { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.2rem; }
-.or { display: flex; align-items: center; gap: 1.2rem; margin: 0.3rem 0; color: var(--text-muted); font-size: 0.85rem; }
+.actions { display: flex; flex-direction: column; gap: 0.85rem; margin-top: 0.45rem; }
+.or { display: flex; align-items: center; gap: 1.2rem; margin: 0.1rem 0; color: var(--text-muted); font-size: 0.85rem; }
 .or::before, .or::after { content: ''; flex: 1; height: 1px; background: #d9ded6; }
 
-.switch { margin-top: 0.9rem; text-align: center; color: var(--text); font-size: 1rem; }
+.switch { margin-top: 1.6rem; text-align: center; color: var(--text); font-size: 1rem; }
 .switch .link-btn { font-size: 1rem; padding: 0; min-height: 0; color: var(--accent); }
+.policy { margin-top: 0.6rem; text-align: center; }
+.policy .link-btn { font-size: 0.82rem; padding: 0; min-height: 0; color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px; }
 
 /* ---------- โทรศัพท์แนวนอน: พาเนลเดียวกลางจอ (ค่าเดียวกันทั้งหน้า Login/Register) ---------- */
 @media (max-height: 500px) {
-  .head { margin-bottom: 0.95rem; }
+  .head { margin-bottom: 1.15rem; }
   .title { font-size: 1.3rem; }
   .sub { font-size: 0.75rem; margin-top: 0.2rem; }
-  .form { gap: 0.65rem; }
+  .form { gap: 0.75rem; }
   .grid { gap: 0.55rem; }
   .row { margin: 0 0.1rem; }
   .row .link-btn, .check { font-size: 0.72rem; }
   .box { width: 0.95rem; height: 0.95rem; border-radius: 0.28rem; }
   /* ปุ่มบน-ล่าง กว้างเท่าช่องกรอก */
-  .actions { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; margin-top: 0.4rem; }
+  .actions { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; margin-top: 0.45rem; }
   .actions > * { width: 100%; min-height: var(--control-h); font-size: 0.8rem; }
   .or { display: none; }
-  .switch { margin-top: 0.9rem; font-size: 0.75rem; }
+  .switch { margin-top: 1.1rem; font-size: 0.75rem; }
   .switch .link-btn { font-size: 0.75rem; }
+  .policy { margin-top: 0.3rem; }
+  .policy .link-btn { font-size: 0.66rem; }
 }
 /* จอเตี้ย (Android ทั่วไป 360px) */
 @media (max-height: 380px) {

@@ -15,21 +15,13 @@ CREATE TABLE IF NOT EXISTS users (
   auth_providers  VARCHAR(100) NOT NULL DEFAULT '',     -- เช่น "password,google.com"
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_login_at   DATETIME NULL,
+  privacy_version     VARCHAR(20) NULL,   -- เวอร์ชันนโยบายความเป็นส่วนตัวที่ยอมรับล่าสุด
+  privacy_accepted_at DATETIME NULL,
   UNIQUE KEY uq_users_uid (firebase_uid),
   UNIQUE KEY uq_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ลิงก์รีเซ็ตรหัสผ่าน: อายุ 30 นาที ใช้ได้ครั้งเดียว (เก็บเฉพาะ hash ของ token)
-CREATE TABLE IF NOT EXISTS password_reset_tokens (
-  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  firebase_uid  VARCHAR(128) NOT NULL,
-  token_hash    CHAR(64) NOT NULL,
-  expires_at    DATETIME NOT NULL,
-  used_at       DATETIME NULL,
-  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_reset_hash (token_hash),
-  KEY idx_reset_uid (firebase_uid)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- ลืมรหัสผ่าน: ใช้อีเมลรีเซ็ตของ Firebase Authentication (ไม่ต้องมีตารางในฐานข้อมูล)
 
 -- ---------- ข้อมูลตั้งต้น (seed จาก Excel) ----------
 CREATE TABLE IF NOT EXISTS questions (

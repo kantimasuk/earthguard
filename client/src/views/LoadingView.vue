@@ -56,7 +56,8 @@ async function start() {
   // หลังหน้าโหลด → ไปหน้า Login เสมอ (ถ้า login ค้างไว้อยู่แล้ว ระบบพาไปหน้าหลักเอง)
   // ยกเว้นเปิดมาจากลิงก์ตั้งรหัสผ่านใหม่ในอีเมล
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '';
-  router.replace(redirect.startsWith('/reset-password') ? redirect : '/login');
+  const fromEmail = redirect.startsWith('/reset-password') || redirect.startsWith('/auth/action');
+  router.replace(fromEmail ? redirect : '/login');
 }
 </script>
 

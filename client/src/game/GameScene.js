@@ -192,17 +192,21 @@ export function defineGameScene(Phaser) {
     /** ค่าคงที่ของโต๊ะ (ใช้ทั้งตอนจัดโต๊ะ และตอนบอก Vue ว่าโต๊ะควรกว้างเท่าไร) */
     #metrics(h) {
       const phone = this.H <= 500;
-      const pad = phone ? 6 : 10;
+      const pad = phone ? 3 : 10;
+      // ระยะขอบกรอบโต๊ะ ซ้าย-ขวา (กว้างกว่าบน-ล่าง) → การ์ดไม่ดูล้น/ชิดขอบกรอบ
+      const padX = phone ? 10 : 18;
       const handle = phone ? 24 : 32;           // ปุ่มหยิบแถว (ซ้ายของกองกลาง)
-      const hTop = Math.round(handle * 0.6);    // ปุ่มหยิบคอลัมน์ (บน) ซ้อนขอบบนการ์ดเล็กน้อย → การ์ดสูงขึ้น
-      const g = phone ? 5 : 7;
+      // ปุ่มหยิบคอลัมน์ (บน) ซ้อนขอบบนการ์ด → การ์ดสูงขึ้น
+      // มือถือ: ให้ปุ่มซ้อนลงบนการ์ดลึกขึ้น (เหลือที่ด้านบนแค่ 7px) → การ์ดกองกลางใหญ่ขึ้นอีก
+      const hTop = phone ? 7 : Math.round(handle * 0.6);
+      const g = phone ? 3 : 7;
       const sideGap = phone ? 8 : 14;
       const sideRatio = 0.86;
       const innerH = h - 2 * pad - hTop;
       const ch = (innerH - 2 * g) / 3;
       const cw = ch * 0.714;
-      const width = 2 * pad + cw * sideRatio + sideGap + handle + 3 * cw + 2 * g;
-      return { phone, pad, handle, hTop, g, sideGap, sideRatio, innerH, ch, cw, width };
+      const width = 2 * padX + cw * sideRatio + sideGap + handle + 3 * cw + 2 * g;
+      return { phone, pad, padX, handle, hTop, g, sideGap, sideRatio, innerH, ch, cw, width };
     }
 
     /** ความกว้างโต๊ะที่พอดีกับความสูง h (Vue ใช้กำหนดความกว้างช่องโต๊ะ → ไม่มีที่ว่างเหลือในกรอบ) */
@@ -214,9 +218,9 @@ export function defineGameScene(Phaser) {
       // กรอบโต๊ะจาก Vue (ถ้ายังไม่มี ใช้กลางจอไปก่อน)
       const R = this.bridge.boardRect?.() || { x: W * 0.22, y: 8, w: W * 0.5, h: H - 16 };
       const M = this.#metrics(R.h);
-      const { phone, pad, handle, hTop, g, sideGap, sideRatio, innerH } = M;
+      const { phone, pad, padX, handle, hTop, g, sideGap, sideRatio, innerH } = M;
       let { ch, cw } = M;
-      const fixedW = 2 * pad + sideGap + handle + 2 * g;
+      const fixedW = 2 * padX + sideGap + handle + 2 * g;
       if (fixedW + cw * (3 + sideRatio) > R.w) {  // ช่องแคบกว่าที่ต้องการ → ย่อตามความกว้าง
         cw = (R.w - fixedW) / (3 + sideRatio);
         ch = cw / 0.714;
@@ -231,7 +235,7 @@ export function defineGameScene(Phaser) {
       this.L = {
         phone, k: K, R,
         // กรอบโต๊ะที่วาดจริง: ห่อพอดีการ์ด (ไม่มีที่ว่างซ้ายขวา)
-        box: { x: boardX - pad, y: gy - hTop - pad, w: boardW + 2 * pad, h: gridH + hTop + 2 * pad },
+        box: { x: boardX - padX, y: gy - hTop - pad, w: boardW + 2 * padX, h: gridH + hTop + 2 * pad },
         grid: { x: gx, y: gy, cw, ch, g, handle, hTop, w: gridW, h: gridH },
         side: { x: boardX, w: sw, h: ch * sideRatio },
       };
@@ -277,9 +281,13 @@ export function defineGameScene(Phaser) {
       g.fillStyle(0xffffff, 0.34).fillRoundedRect(R.x, R.y, R.w, R.h, r);
       g.lineStyle(1.5, 0xffffff, 0.85).strokeRoundedRect(R.x + 0.75, R.y + 0.75, R.w - 1.5, R.h - 1.5, r);
       // คอลัมน์กองจั่ว/สาธารณะ/กองทิ้ง (กรอบบาง ๆ แบบในไวร์เฟรม)
+      // ต้องอยู่ "ข้างใน" กรอบโต๊ะเสมอ (เว้นจากขอบกรอบนอก) → เส้นกรอบสองชั้นไม่ทับกันด้านบน/ล่าง
       const m = phone ? 4 : 6;
-      g.fillStyle(0xffffff, 0.22).fillRoundedRect(side.x - m, grid.y - m, side.w + 2 * m, grid.h + 2 * m, 14);
-      g.lineStyle(1.2, 0xffffff, 0.75).strokeRoundedRect(side.x - m, grid.y - m, side.w + 2 * m, grid.h + 2 * m, 14);
+      const inset = phone ? 5 : 8;
+      const sTop = Math.max(grid.y - m, R.y + inset);
+      const sBot = Math.min(grid.y + grid.h + m, R.y + R.h - inset);
+      g.fillStyle(0xffffff, 0.22).fillRoundedRect(side.x - m, sTop, side.w + 2 * m, sBot - sTop, 14);
+      g.lineStyle(1.2, 0xffffff, 0.75).strokeRoundedRect(side.x - m, sTop, side.w + 2 * m, sBot - sTop, 14);
       // ช่องวางการ์ด
       for (let i = 0; i < 9; i++) {
         const p = this.slotXY(i);
@@ -421,7 +429,8 @@ export function defineGameScene(Phaser) {
         } else {
           const p = this.slotXY(idx[0]);
           x = p.x;
-          y = grid.y - grid.hTop / 2 - 1; // ครึ่งล่างของปุ่มซ้อนขอบบนการ์ด
+          // ครึ่งล่างของปุ่มซ้อนขอบบนการ์ด (มือถือ: ให้ขอบบนของปุ่มอยู่ในจอพอดี)
+          y = this.L.phone ? Math.max(hs / 2 + 1, grid.y + 1) : grid.y - grid.hTop / 2 - 1;
         }
         c.setPosition(x, y);
         const hsz = hs + 10; // พื้นที่แตะใหญ่กว่าปุ่มเล็กน้อย (นิ้วแตะง่าย)
@@ -677,8 +686,23 @@ export function defineGameScene(Phaser) {
       im.destroy();
     }
 
+    /**
+     * การ์ดที่บินออกนอกโต๊ะ (ไปหา/มาจากแผงผู้เล่นที่เป็น HTML) ต้องอยู่ "ชั้นบนสุด"
+     * canvas ของ Phaser ปกติอยู่ใต้แผง HTML → ระหว่างบิน ให้ Vue ยก canvas ขึ้นไปเหนือแผงชั่วคราว
+     * (นับซ้อนได้ หลายแอนิเมชันพร้อมกันก็ไม่ลดชั้นก่อนเวลา)
+     */
+    async #onTop(fn) {
+      this._top = (this._top || 0) + 1;
+      if (this._top === 1) this.bridge.flyTop?.(true);
+      try { return await fn(); } finally {
+        this._top -= 1;
+        if (this._top === 0) this.bridge.flyTop?.(false);
+      }
+    }
+
     /** ผู้เล่นหยิบการ์ดจากกองกลาง → บินเข้าหาผู้เล่น */
-    async takeCards(pid, slots) {
+    async takeCards(pid, slots) { return this.#onTop(() => this.#takeCards(pid, slots)); }
+    async #takeCards(pid, slots) {
       const to = this.anchorOf(pid);
       const { cw, ch } = this.L.grid;
       const flyers = slots.map((i) => {
@@ -707,7 +731,8 @@ export function defineGameScene(Phaser) {
     }
 
     /** การ์ดบินจากผู้เล่นไปกองทิ้ง/โซนสาธารณะ (ทิ้งเพื่อสร้างสิทธิ หรือเสียการ์ดจากภัยคุกคาม) */
-    async cardsLeavePlayer(pid, ids, toPublic = []) {
+    async cardsLeavePlayer(pid, ids, toPublic = []) { return this.#onTop(() => this.#cardsLeavePlayer(pid, ids, toPublic)); }
+    async #cardsLeavePlayer(pid, ids, toPublic) {
       const from = this.anchorOf(pid);
       const { cw, ch } = this.L.grid;
       const disc = this.discardXY();
@@ -724,7 +749,8 @@ export function defineGameScene(Phaser) {
     }
 
     /** การ์ดสิทธิบินจากมือ/โซนสาธารณะไปวางหน้าผู้เล่น */
-    async rightToBuilt(pid, id, from) {
+    async rightToBuilt(pid, id, from) { return this.#onTop(() => this.#rightToBuilt(pid, id, from)); }
+    async #rightToBuilt(pid, id, from) {
       const start = from === 'public' ? this.publicXY() : this.anchorOf(pid);
       const to = this.builtAnchor(pid);
       const { cw, ch } = this.L.grid;
@@ -747,7 +773,8 @@ export function defineGameScene(Phaser) {
     }
 
     /** +1 เด้งขึ้นบนการ์ดสิทธิที่ป้องกันได้ */
-    async protectPop(pid, text = '+1') {
+    async protectPop(pid, text = '+1') { return this.#onTop(() => this.#protectPop(pid, text)); }
+    async #protectPop(pid, text) {
       const at = this.builtAnchor(pid);
       const t = this.text(at.x, at.y - 6, text, { size: this.L.phone ? 16 : 20, weight: '700', color: '#2f7a2e', ox: 0.5, oy: 0.5 });
       t.setStroke('#ffffff', 5);

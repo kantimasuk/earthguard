@@ -43,7 +43,7 @@ const rows = computed(() => {
         @click="emit('select', p.id)"
       >
         <span class="avw">
-          <PlayerAvatar :is-ai="p.isAI" :avatar="p.isAI ? p.avatar : myAvatar" :name="p.id === me ? myName : p.name" :size="compact ? '2.1rem' : '2.5rem'" :active="!ended && current === p.id" />
+          <PlayerAvatar :is-ai="p.isAI" :avatar="p.isAI ? p.avatar : myAvatar" :name="p.id === me ? myName : p.name" :size="compact ? '2.1rem' : 'var(--pav, 2.5rem)'" :active="!ended && current === p.id" />
           <i v-if="compact" class="hc" title="การ์ดในมือ">{{ p.handCount }}</i>
         </span>
         <b v-if="compact" class="cname">{{ p.id === me ? 'คุณ' : p.name }}</b>
@@ -69,7 +69,7 @@ const rows = computed(() => {
 </template>
 
 <style scoped>
-.players { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.players { display: flex; flex-direction: column; min-height: 0; overflow: hidden; container-type: inline-size; }
 h3 {
   margin: 0; padding: 0.45rem 0.8rem; text-align: center;
   font-family: var(--font-head); font-size: 1rem; font-weight: 700; color: #2f5a3a;
@@ -85,9 +85,11 @@ li {
 }
 li:hover { transform: translateY(-1px); }
 li.turn { background: #fff8dc; border-color: #f6cf6a; box-shadow: 0 0 0 3px rgba(246, 207, 106, 0.35), 0 3px 10px rgba(180, 140, 40, 0.15); }
-.info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 0.1rem; }
+.info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 0.2rem; padding-left: 0.15rem; }
 .name { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
-.name b { font-size: 0.95rem; color: #24452b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.name b { font-size: 0.95rem; color: #24452b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 0.2rem; }
+/* padding-left: สระหน้า (ใ ไ โ) ของฟอนต์ยื่นออกทางซ้าย → ถ้าไม่เว้นที่ จะถูก overflow: hidden ตัดหาย */
+.stats { padding-left: 0.1rem; }
 .now {
   align-self: flex-start; max-width: 100%; display: inline-flex; align-items: center; gap: 0.3rem;
   font-size: 0.7rem; font-weight: 700; padding: 0.05rem 0.55rem 0.05rem 0.4rem; border-radius: 999px;
@@ -104,8 +106,40 @@ li.turn { background: #fff8dc; border-color: #f6cf6a; box-shadow: 0 0 0 3px rgba
 .say-enter-active, .say-leave-active { transition: opacity 0.2s, transform 0.2s; }
 .say-enter-from, .say-leave-to { opacity: 0; transform: translateY(4px); }
 
+/* แผงแคบ (คอลัมน์ซ้ายบนแท็บเล็ต/จอเล็ก): ตัวเลขสถิติเล็กลง ไม่ล้นขอบ */
+@container (max-width: 250px) {
+  li { gap: 0.6rem; padding: 0.4rem 0.5rem 0.4rem 0.55rem; }
+  .stats { gap: 0.35rem; font-size: 0.7rem; }
+  .dot { width: 0.45rem; height: 0.45rem; margin-right: 0.15rem; }
+}
+/* แท็บเล็ต / จอคอมเตี้ย: แถวผู้เล่นเตี้ยลง → 5 คนพอดีกล่อง */
+@media (min-height: 501px) and (max-height: 899px) {
+  .players { --pav: 2.1rem; }
+  h3 { padding: 0.3rem 0.8rem; font-size: 0.92rem; }
+  ul { gap: 0.3rem; padding: 0.35rem; }
+  li { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+  .name b { font-size: 0.88rem; }
+  .now { font-size: 0.64rem; }
+}
+
+/* มือถือแนวนอน: หน้าตาเหมือนคอม แต่ย่อทุกอย่างให้ 5 คนพอดีคอลัมน์แคบ ๆ */
+@media (max-height: 500px) {
+  .players { --pav: 1.65rem; border-radius: 14px; }
+  h3 { padding: 0.22rem 0.4rem; font-size: 0.74rem; }
+  ul { padding: 0.35rem 0.45rem; gap: 0.3rem; }
+  /* แถวที่ถึงตามีวงแหวนเหลืองรอบรูป (ใหญ่ขึ้น) → เว้นซ้ายและช่องรูป-ชื่อ ให้ไม่ชิดกัน */
+  li { gap: 0.55rem; padding: 0.35rem 0.55rem 0.35rem 0.5rem; border-radius: 0.7rem; border-width: 1px; }
+  .info { gap: 0.15rem; padding-left: 0.1rem; }
+  .name b { font-size: 0.7rem; line-height: 1.4; }
+  .now { font-size: 0.54rem; padding: 0 0.4rem 0 0.3rem; gap: 0.2rem; }
+  .pulse { width: 4px; height: 4px; }
+  .stats { gap: 0.3rem; font-size: 0.56rem; line-height: 1.45; }
+  .stats small { font-size: 0.5rem; }
+  .dot { width: 0.36rem; height: 0.36rem; margin-right: 0.1rem; }
+}
+
 /* แบบย่อ (มือถือ): แถบรูปแนวตั้ง · ตัวเลขบนรูป = การ์ดในมือ · แตะเพื่อดูรายละเอียด */
-.avw { position: relative; flex: none; display: inline-flex; }
+.avw { position: relative; flex: none; display: inline-flex; margin: 0 0.1rem; } /* เผื่อวงแหวนเหลืองตอนถึงตา */
 .hc {
   position: absolute; right: -5px; bottom: -3px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 999px;
   display: grid; place-items: center; font-style: normal; font-size: 0.6rem; font-weight: 700; color: #fff;

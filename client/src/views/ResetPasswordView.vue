@@ -1,34 +1,50 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+// หน้าเปิดจากลิงก์ในอีเมลของ Firebase
+// - mode=resetPassword → ตั้งรหัสผ่านใหม่ (ใช้เงื่อนไขรหัสผ่านเดียวกับหน้าสมัคร)
+// - mode=verifyEmail   → ยืนยันอีเมล (กรณีตั้ง Custom action URL ใน Firebase ลิงก์ยืนยันอีเมลจะมาหน้านี้ด้วย)
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AuthLayout from '@/components/AuthLayout.vue';
 import FormField from '@/components/FormField.vue';
 import LoadingScreen from '@/components/loading/LoadingScreen.vue';
 import PasswordRules from '@/components/PasswordRules.vue';
 import { validatePassword, validateConfirm } from '@/utils/validation';
-import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 import { play } from '@/services/sound';
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
-const token = typeof route.query.token === 'string' ? route.query.token : '';
+const q = (k) => (typeof route.query[k] === 'string' ? route.query[k] : '');
+const mode = q('mode') || 'resetPassword';
+const code = q('oobCode');
 
-const state = ref('checking'); // checking | form | invalid | done | offline
+const state = ref('checking'); // checking | form | invalid | done | verified | offline
+const email = ref('');
 const form = reactive({ password: '', confirm: '' });
 const errors = reactive({ password: '', confirm: '' });
 const formError = ref('');
 const loading = ref(false);
 const showLoader = ref(true); // หน้าโหลดเต็มจอระหว่างตรวจสอบลิงก์
+const title = computed(() => (mode === 'verifyEmail' ? 'ยืนยันอีเมล' : 'ตั้งรหัสผ่านใหม่'));
+
+const BAD_LINK = ['auth/expired-action-code', 'auth/invalid-action-code', 'auth/user-disabled', 'auth/user-not-found'];
+const failState = (e) => (BAD_LINK.includes(e?.code) ? 'invalid' : 'offline');
 
 onMounted(async () => {
-  if (!token) { state.value = 'invalid'; return; }
+  if (!code) { state.value = 'invalid'; return; }
   try {
-    const { valid } = await api(`/api/auth/reset-password/verify?token=${encodeURIComponent(token)}`, { auth: false });
-    state.value = valid ? 'form' : 'invalid';
-  } catch {
-    state.value = 'offline';
+    if (mode === 'verifyEmail') {
+      await auth.applyEmailAction(code);
+      state.value = 'verified';
+    } else if (mode === 'resetPassword') {
+      email.value = await auth.checkResetCode(code);
+      state.value = 'form';
+    } else {
+      state.value = 'invalid';
+    }
+  } catch (e) {
+    state.value = failState(e);
   }
 });
 
@@ -39,26 +55,28 @@ async function submit() {
   if (errors.password || errors.confirm) { play('error'); return; }
   loading.value = true;
   try {
-    await api('/api/auth/reset-password', { method: 'POST', body: { token, password: form.password }, auth: false });
+    await auth.confirmReset(code, form.password);
     play('success');
     if (auth.isLoggedIn) await auth.logout(); // รหัสเปลี่ยนแล้ว ให้เข้าใหม่
     state.value = 'done';
   } catch (e) {
     play('error');
-    if (e.code === 'INVALID_OR_EXPIRED') state.value = 'invalid';
-    else if (e.code === 'WEAK_PASSWORD') errors.password = 'รหัสผ่านไม่ตรงตามเงื่อนไข';
+    if (e.code === 'auth/weak-password' || e.code === 'auth/password-does-not-meet-requirements') errors.password = 'รหัสผ่านไม่ตรงตามเงื่อนไข';
+    else if (BAD_LINK.includes(e.code)) state.value = 'invalid';
+    else if (e.code === 'auth/network-request-failed') formError.value = 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ กรุณาลองใหม่';
     else formError.value = 'ตั้งรหัสผ่านไม่สำเร็จ กรุณาลองใหม่';
   } finally {
     loading.value = false;
   }
 }
 
-const toLogin = () => { play('click'); router.replace('/login'); };
+const toLogin = () => { play('click'); router.replace(auth.isLoggedIn ? '/menu' : '/login'); };
 </script>
 
 <template>
   <AuthLayout>
-    <h1 class="title">ตั้งรหัสผ่านใหม่</h1>
+    <h1 class="title">{{ title }}</h1>
+    <p v-if="state === 'form' && email" class="for">สำหรับบัญชี <b>{{ email }}</b></p>
 
     <LoadingScreen v-if="showLoader" :done="state !== 'checking'" label="กำลังตรวจสอบลิงก์" @finished="showLoader = false" />
 
@@ -96,19 +114,23 @@ const toLogin = () => { play('click'); router.replace('/login'); };
       <template v-if="state === 'done'">
         <p class="alert alert--ok">ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่</p>
       </template>
+      <template v-else-if="state === 'verified'">
+        <p class="alert alert--ok">ยืนยันอีเมลเรียบร้อยแล้ว</p>
+      </template>
       <template v-else-if="state === 'invalid'">
-        <p class="alert alert--error">ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว (ลิงก์มีอายุ 30 นาที และใช้ได้ครั้งเดียว) กรุณาขอลิงก์ใหม่จากหน้าเข้าสู่ระบบ</p>
+        <p class="alert alert--error">ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว (ลิงก์มีอายุ 1 ชั่วโมง และใช้ได้ครั้งเดียว) กรุณาขอลิงก์ใหม่จากหน้าเข้าสู่ระบบ</p>
       </template>
       <template v-else>
-        <p class="alert alert--error">เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่อีกครั้ง</p>
+        <p class="alert alert--error">เชื่อมต่อไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วเปิดลิงก์ใหม่อีกครั้ง</p>
       </template>
-      <button class="btn btn--block" type="button" @click="toLogin">ไปหน้าเข้าสู่ระบบ</button>
+      <button class="btn btn--block" type="button" @click="toLogin">{{ auth.isLoggedIn ? 'ไปหน้าหลัก' : 'ไปหน้าเข้าสู่ระบบ' }}</button>
     </div>
   </AuthLayout>
 </template>
 
 <style scoped>
 .title { font-size: 1.8rem; font-weight: 700; color: var(--accent); text-align: center; margin-bottom: 0.8rem; }
+.for { text-align: center; color: var(--text-muted); font-size: 0.92rem; margin: -0.4rem 0 0.6rem; word-break: break-all; }
 .form, .status { display: flex; flex-direction: column; gap: var(--gap); }
 .status { align-items: stretch; }
 .status > .spinner.big { align-self: center; width: 2rem; height: 2rem; color: var(--leaf); }

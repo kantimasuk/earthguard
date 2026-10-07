@@ -10,7 +10,8 @@ const routes = [
   { path: '/', name: 'loading', component: LoadingView },
   { path: '/login', name: 'login', component: lazyViews.login, meta: { guestOnly: true } },
   { path: '/register', name: 'register', component: lazyViews.register, meta: { guestOnly: true } },
-  { path: '/reset-password', name: 'reset-password', component: lazyViews.reset },
+  // ลิงก์จากอีเมลของ Firebase (ตั้ง Custom action URL ไว้ที่ /auth/action หรือ /reset-password ก็ได้)
+  { path: '/reset-password', name: 'reset-password', component: lazyViews.reset, alias: '/auth/action' },
   { path: '/menu', name: 'menu', component: lazyViews.menu, meta: { requiresAuth: true } },
   { path: '/setup', name: 'setup', component: lazyViews.setup, meta: { requiresAuth: true } },
   // เส้นทางของ 1 รอบการเล่น: Pre-test → เกม → Post-test → สรุปผล (ต้องมีรอบการเล่นอยู่)

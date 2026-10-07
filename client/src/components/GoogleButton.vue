@@ -18,7 +18,13 @@ defineProps({ loading: Boolean, disabled: Boolean, label: { type: String, defaul
 
 <style scoped>
 .google svg { width: 1.3rem; height: 1.3rem; flex: none; }
-.google { font-size: 1rem; }
+/* ปุ่มรอง: พื้นขาว + เส้นขอบบาง ไม่มีเงา (ให้ปุ่มหลักสีเขียวเด่นกว่า) */
+.google {
+  font-size: 1rem; color: var(--text);
+  background: #ffffff; border: 1.5px solid #d9e2d4; box-shadow: none;
+}
+.google:hover:not(:disabled) { filter: none; background: #f6faf3; border-color: #bcd3b2; }
+.google:active:not(:disabled) { box-shadow: none; transform: translateY(1px); background: #eef6ea; }
 .short { display: none; }
 @media (max-height: 500px) {
   .google svg { width: 1.1rem; height: 1.1rem; }
