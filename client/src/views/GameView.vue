@@ -1228,7 +1228,9 @@ function selectPlayer(id) {
 .env-out .stage, .env-out .layout, .env-out .pile-lbl { opacity: 0; transform: scale(0.96); filter: blur(3px); pointer-events: none !important; }
 .env-out :deep(.gear) { opacity: 0; pointer-events: none; }
 .stage { position: absolute; inset: 0; }
-/* การ์ดบิน (AI/เรา หยิบ-ทิ้ง-สร้างสิทธิ): canvas ขึ้นเหนือแผง (z 10) แต่ใต้ป้ายกอง (z 12) · ระหว่างนั้นคลิกทะลุไปที่แผงได้ */
+/* การ์ดบิน (AI/เรา หยิบ-ทิ้ง-สร้างสิทธิ): canvas ขึ้นเหนือแผงทั่วไป แต่ใต้ป้ายกอง (z 12)
+   และใต้ "การ์ดของเรา" (แผงการ์ดในมือ · การ์ดสิทธิในมือ · ป๊อปอัปการ์ด = z 13) · ระหว่างนั้นคลิกทะลุไปที่แผงได้
+   ลำดับชั้น: โต๊ะ/การ์ดบิน (11) < ป้ายกอง (12) < การ์ดของเรา + ป๊อปอัป (13) < ภัยคุกคาม (40) < ป้ายประกาศ (45) */
 .fly-top .stage { z-index: 11; pointer-events: none; }
 .stage :deep(canvas) { display: block; }
 
@@ -1252,7 +1254,8 @@ function selectPlayer(id) {
   --gap: 8px;
 }
 .layout {
-  position: absolute; z-index: 10;
+  /* ไม่ตั้ง z-index → ไม่สร้างชั้นซ้อนของตัวเอง ลูกข้างในที่ตั้ง z-index (การ์ดของเรา / ป๊อปอัป) จึงขึ้นเหนือ canvas ได้ */
+  position: absolute;
   inset: calc(var(--safe-t) + 10px) calc(var(--safe-r) + 10px) calc(var(--safe-b) + 10px) calc(var(--safe-l) + 10px);
   display: grid; grid-template-columns: var(--lw) minmax(0, 1fr) var(--rw); gap: var(--gap);
   justify-content: space-between; /* ที่ว่างที่เหลือ (ถ้ามี) กระจายเป็นช่องไฟระหว่างคอลัมน์ */
@@ -1360,7 +1363,7 @@ function selectPlayer(id) {
 .ab.big svg { width: 1.6rem; height: 1.6rem; }
 
 /* ---- การ์ดของเรา (คอม) ---- */
-.mine-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.6rem; }
+.mine-panel { position: relative; z-index: 13; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.6rem; }
 .mine-panel > :first-child { flex: 1; min-height: 0; }
 
 /* ---- ปุ่มการกระทำ ---- */
@@ -1418,7 +1421,7 @@ function selectPlayer(id) {
 .pact .act { min-height: 30px; font-size: 0.76rem; }
 
 /* การ์ดของฉัน: กรอบเดียว 2 แถว */
-.pmine { flex: 1 1 0; min-height: 0; max-height: 13rem; display: flex; flex-direction: column; padding: 0.3rem; border-radius: 16px; gap: 0.25rem; }
+.pmine { position: relative; z-index: 13; flex: 1 1 0; min-height: 0; max-height: 13rem; display: flex; flex-direction: column; padding: 0.3rem; border-radius: 16px; gap: 0.25rem; }
 .prow {
   flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 0.15rem;
   padding: 0.25rem 0.35rem 0.3rem; border-radius: 12px; border: 0; cursor: pointer; font: inherit; text-align: left;
@@ -1474,7 +1477,7 @@ function selectPlayer(id) {
 
 /* ป๊อปอัปการ์ด: ลอยเหนือปุ่ม 3 ปุ่ม มุมขวาล่าง ทับโต๊ะบางส่วน (ตามไวร์เฟรม) */
 .cards-pop {
-  position: fixed; z-index: 70;
+  position: fixed; z-index: 13; /* เหนือโต๊ะ/การ์ดบิน (11) · ใต้ภัยคุกคาม/ป้ายประกาศ/ฟันเฟือง */
   pointer-events: auto; /* อยู่ใน .layout ที่ปิด pointer-events → ต้องเปิดคืน ไม่งั้นแตะทะลุไปโดนกล่องการ์ดข้างใต้ */
   right: calc(var(--safe-r) + 6px);
   bottom: calc(var(--safe-b) + 6px + 36px + 16px);
